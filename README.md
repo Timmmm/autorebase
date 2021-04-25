@@ -1,6 +1,6 @@
 # Autorebase
 
-![](logo.svg)
+<img align="right" src="logo.svg">
 
 I work on a repo with a fast-moving `master` branch and it gets pretty tedious typing
 
