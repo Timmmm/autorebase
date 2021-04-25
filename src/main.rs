@@ -147,6 +147,9 @@ mod tests {
     fn create_temporary_git_repo() -> TempDir {
         let repo_dir = tempdir().expect("Couldn't create temporary directory");
         run_git_cmd(&["init", "--initial-branch=master"], &repo_dir.path()).expect("error initialising git repo");
+        // You have to set these otherwise Git can't do commits.
+        run_git_cmd(&["config", "user.email", "me@example.com"], &repo_dir.path()).expect("error setting config");
+        run_git_cmd(&["config", "user.name", "Me"], &repo_dir.path()).expect("error setting config");
         repo_dir
     }
 
