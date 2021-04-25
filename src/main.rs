@@ -153,13 +153,11 @@ mod tests {
         repo_dir
     }
 
-    fn commit(message: &str, date: &str, working_dir: &Path) {
+    fn commit(message: &str, working_dir: &Path) {
         assert!(
             Command::new("git")
                 .current_dir(working_dir)
                 .args(&["commit", "-m", message])
-                .env("GIT_AUTHOR_DATE", date)
-                .env("GIT_COMMITTER_DATE", date)
                 .status()
                 .expect("failed to execute git process")
                 .success()
@@ -179,21 +177,21 @@ mod tests {
 
         write(&repo_dir.join("data1.txt"), "1").expect("unable to write file");
         run_git_cmd(&["add", "data1.txt"], &repo_dir).expect("git command failed");
-        commit("Commit 1\n\nMore info", "2005-04-07T22:13:01", &repo_dir);
+        commit("Commit 1\n\nMore info", &repo_dir);
 
         // Checkout a new branch
         run_git_cmd(&["checkout", "-b", "two"], &repo_dir).expect("git command failed");
 
         write(&repo_dir.join("data2.txt"), "2").expect("unable to write file");
         run_git_cmd(&["add", "data2.txt"], &repo_dir).expect("git command failed");
-        commit("Commit 2\n\nMore info", "2005-04-07T22:13:02", &repo_dir);
+        commit("Commit 2\n\nMore info", &repo_dir);
 
         // Go back to master.
         run_git_cmd(&["checkout", "master"], &repo_dir).expect("git command failed");
 
         write(&repo_dir.join("data3.txt"), "3").expect("unable to write file");
         run_git_cmd(&["add", "data3.txt"], &repo_dir).expect("git command failed");
-        commit("Commit 3\n\nMore info", "2005-04-07T22:13:03", &repo_dir);
+        commit("Commit 3\n\nMore info", &repo_dir);
 
         // Log before.
         print_log(&repo_dir);
