@@ -276,8 +276,9 @@ mod tests {
 
             args.push(&tree_object);
 
-            // Commit.
-            let this_commit = run_git_cmd_output(&args, repo_path).expect("error committing");
+            // Commit. Set the date to a fixed value so we get the same output
+            // each time.
+            let this_commit = run_git_cmd_output_1970(&args, repo_path).expect("error committing");
             let this_commit = String::from_utf8_lossy(&this_commit);
             let this_commit = this_commit.trim();
 
@@ -324,6 +325,9 @@ mod tests {
         let repo_dir = repo.into_path(); // Keep the temporary directory.
 
         print_log(&repo_dir);
+
+        let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+        dbg!(graph);
     }
 
     #[test]
@@ -361,7 +365,14 @@ mod tests {
         print_log(&repo_dir);
     }
 
-    fn get_repo_graph(repo_dir: &Path) -> Result<()> {
+    #[derive(Default, Debug, PartialEq, Eq)]
+    struct CommitInfo {
+        subject: String,
+        parents: Vec<String>,
+        refs: Vec<String>,
+    }
+
+    fn get_repo_graph(repo_dir: &Path) -> Result<HashMap<String, CommitInfo>> {
         // git log --all --format='%H%x00%P%x00%D%x00%s'
         //
         // gives <commit_hash>\0<parent_hashes>\0<refs>\0<subject>
@@ -369,13 +380,6 @@ mod tests {
         // Probably have to do separate commands to get the different bits.
 
         // Then build the graph structure.
-
-        #[derive(Default)]
-        struct CommitInfo {
-            parents: Vec<String>,
-            refs: Vec<String>,
-            subject: String,
-        }
 
         let mut commits: HashMap<String, CommitInfo> = HashMap::new();
 
@@ -392,11 +396,17 @@ mod tests {
         for line in commit_refs.lines() {
             let mut parts = line.split(',');
             let commit = parts.next().ok_or(anyhow!("invalid git log output"))?;
-            commits.entry(commit.to_string()).or_default().refs = parts.map(
-                |p| p.trim().trim_start_matches("HEAD -> ").to_owned()
+            commits.entry(commit.to_string()).or_default().refs = parts.filter_map(
+                |p| {
+                    let p = p.trim().trim_start_matches("HEAD -> ");
+                    if p == "HEAD" {
+                        None
+                    } else {
+                        Some(p.to_owned())
+                    }
+                }
             ).collect();
         }
-
 
         let commit_subject = run_git_cmd_output(&["log", "--all", "--format=%H%x00%s"], repo_dir)?;
         let commit_subject = String::from_utf8_lossy(&commit_subject);
@@ -406,9 +416,11 @@ mod tests {
             commits.entry(commit.to_string()).or_default().subject = parts.next().ok_or(anyhow!("invalid git log subject output"))?.to_owned();
         }
 
-        todo!()
+        // This is sufficient to check the structure - we just check for equality.
+        // Rather than doing complicated hash-agnostic graph isomorphism stuff
+        // we just arrange things so the hashes are the same every run.
+
+        Ok(commits)
     }
-
-
 
 }
