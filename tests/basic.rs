@@ -47,7 +47,7 @@ fn test_build_repo() {
 
 // Very basic autorebase test.
 #[test]
-fn test_basic_autorebase() {
+fn basic_autorebase() {
     git_fixed_dates();
 
     let root =
@@ -69,9 +69,6 @@ fn test_basic_autorebase() {
     let repo_dir = repo.path();
 
     print_log(&repo_dir);
-
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
-    dbg!(graph);
 
     autorebase(repo_dir, "master").expect("error autorebasing");
 
