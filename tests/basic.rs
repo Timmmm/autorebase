@@ -21,12 +21,12 @@ fn test_build_repo() {
 
     let repo_dir = repo.path();
 
-    print_log(&repo_dir);
+    print_git_log_graph(&repo_dir);
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
 
-    let expected_graph = commit_info_graph!(
-        "baf6cf8e026e065d369b3dd103c4cc73ffba52dd": CommitInfo {
+    let expected_graph = commit_graph!(
+        "baf6cf8e026e065d369b3dd103c4cc73ffba52dd": CommitGraphNode {
             parents: [
                 "fdc071d3ae2b15728ab5a20d32b2c781999238ba",
             ],
@@ -34,7 +34,7 @@ fn test_build_repo() {
                 "master",
             },
         },
-        "fdc071d3ae2b15728ab5a20d32b2c781999238ba": CommitInfo {
+        "fdc071d3ae2b15728ab5a20d32b2c781999238ba": CommitGraphNode {
             parents: [],
             refs: {
                 "",
@@ -68,16 +68,16 @@ fn basic_autorebase() {
 
     let repo_dir = repo.path();
 
-    print_log(&repo_dir);
+    print_git_log_graph(&repo_dir);
 
     autorebase(repo_dir, "master").expect("error autorebasing");
 
-    print_log(&repo_dir);
+    print_git_log_graph(&repo_dir);
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
 
-    let expected_graph = commit_info_graph!(
-        "a6de41485a5af44adc18b599a63840c367043e39": CommitInfo {
+    let expected_graph = commit_graph!(
+        "a6de41485a5af44adc18b599a63840c367043e39": CommitGraphNode {
             parents: [
                 "d3591307bd5590f14ae24d03ab41121ab94e2a90",
             ],
@@ -85,13 +85,13 @@ fn basic_autorebase() {
                 "master",
             },
         },
-        "d3591307bd5590f14ae24d03ab41121ab94e2a90": CommitInfo {
+        "d3591307bd5590f14ae24d03ab41121ab94e2a90": CommitGraphNode {
             parents: [],
             refs: {
                 "",
             },
         },
-        "e42d214485dff70e93fdf6c66901b9ae4cc05b5a": CommitInfo {
+        "e42d214485dff70e93fdf6c66901b9ae4cc05b5a": CommitGraphNode {
             parents: [
                 "a6de41485a5af44adc18b599a63840c367043e39",
             ],

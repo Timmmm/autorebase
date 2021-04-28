@@ -5,6 +5,14 @@ use git_commands::*;
 use std::path::Path;
 use anyhow::{anyhow, Result};
 
+/// Set environment variables so Git uses fixed dates. This ensures the
+/// hashes are deterministic which is useful for tests.
+pub fn git_fixed_dates() {
+    std::env::set_var("GIT_AUTHOR_DATE", "@0 +0000");
+    std::env::set_var("GIT_COMMITTER_DATE", "@0 +0000");
+}
+
+/// Create a temporary directory and initialise it as a Git repo.
 pub fn create_temporary_git_repo() -> TempDir {
     let repo_dir = tempdir().expect("Couldn't create temporary directory");
     run_git_cmd(&["init", "--initial-branch=master"], &repo_dir.path()).expect("error initialising git repo");
@@ -16,25 +24,29 @@ pub fn create_temporary_git_repo() -> TempDir {
     repo_dir
 }
 
-pub fn print_log(repo_dir: &Path) {
+// Run `git log` to show the commit graph.
+pub fn print_git_log_graph(repo_dir: &Path) {
     run_git_cmd(&["--no-pager", "log", "--oneline", "--decorate", "--graph", "--all"], repo_dir).expect("git log failed");
 }
 
+/// A commit description, used to build Git repos.
 #[derive(Default)]
 pub struct CommitDescription {
+    /// The commit message.
     message: String,
-    // Map from filename to the new contents or None to delete it.
+    /// Map from filename to the new contents or None to delete it.
     changes: HashMap<String, Option<String>>,
-    // Branch names on this commit.
+    /// Branch names on this commit.
     branches: Vec<String>,
-    // Child commits.
+    /// Child commits.
     children: Vec<CommitDescription>,
-    // ID, only used for merge_parents.
+    /// ID, only used for merge_parents.
     id: Option<i32>,
-    // Additional parents for merge commits.
+    /// Additional parents for merge commits.
     merge_parents: Vec<i32>,
 }
 
+/// Builder methods to set fields.
 #[allow(dead_code)]
 impl CommitDescription {
     pub fn message(mut self, m: &str) -> Self {
@@ -67,6 +79,7 @@ impl CommitDescription {
     }
 }
 
+/// Helper function to create a new `CommitDescription`.
 pub fn commit(message: &str) -> CommitDescription {
     CommitDescription {
         message: message.to_owned(),
@@ -74,6 +87,10 @@ pub fn commit(message: &str) -> CommitDescription {
     }
 }
 
+/// Create a new git repo in a temporary directory with contents described by the
+/// `root` commit and its children. When done if `checkout_when_done` is not `None`
+/// it will be checked out. Otherwise the repo will have a detached HEAD on one
+/// of the leaf commits.
 pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) -> TempDir {
     let repo = create_temporary_git_repo();
 
@@ -156,15 +173,16 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
     repo
 }
 
-
+/// A node in the commit graph (i.e. a commit!) used for testing whether the
+/// graph is correct.
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct CommitInfo {
+pub struct CommitGraphNode {
     // pub subject: String,
     pub parents: Vec<String>,
     pub refs: BTreeSet<String>,
 }
 
-pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitInfo>> {
+pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitGraphNode>> {
     // git log --all --format='%H%x00%P%x00%D%x00%s'
     //
     // gives <commit_hash>\0<parent_hashes>\0<refs>\0<subject>
@@ -173,7 +191,7 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitInfo>> {
 
     // Then build the graph structure.
 
-    let mut commits: BTreeMap<String, CommitInfo> = BTreeMap::new();
+    let mut commits: BTreeMap<String, CommitGraphNode> = BTreeMap::new();
 
     let commit_parents = run_git_cmd_output(&["log", "--all", "--format=%H %P"], repo_dir)?;
     let commit_parents = String::from_utf8_lossy(&commit_parents);
@@ -215,25 +233,27 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitInfo>> {
     Ok(commits)
 }
 
+/// A helper macro to create a `BTreeMap<String, CommitGraphNode>` from the
+/// corresponding `dbg!()` output.
 #[macro_export]
-macro_rules! commit_info_graph {
+macro_rules! commit_graph {
     (
         $(
-            $hash:literal : CommitInfo {
+            $hash:literal : CommitGraphNode {
                 $($field_name:ident : $field_value:tt),*
                 $(,)?
             }
         ),*
         $(,)?
     ) => {{
-        let mut graph: ::std::collections::BTreeMap<String, CommitInfo> = ::std::collections::BTreeMap::new();
+        let mut graph: ::std::collections::BTreeMap<String, CommitGraphNode> = ::std::collections::BTreeMap::new();
         $(
 
             graph.insert($hash.to_string(), {
                 #[allow(unused_mut)]
-                let mut info: CommitInfo = Default::default();
+                let mut info: CommitGraphNode = Default::default();
                 $(
-                    commit_info_graph!(@set_field info, $field_name, $field_value);
+                    commit_graph!(@set_field info, $field_name, $field_value);
                 )*
                 info
             });
@@ -255,9 +275,4 @@ macro_rules! commit_info_graph {
             r
         };
     };
-}
-
-pub fn git_fixed_dates() {
-    std::env::set_var("GIT_AUTHOR_DATE", "@0 +0000");
-    std::env::set_var("GIT_COMMITTER_DATE", "@0 +0000");
 }

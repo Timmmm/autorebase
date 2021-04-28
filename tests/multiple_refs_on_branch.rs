@@ -30,16 +30,16 @@ fn multiple_branches() {
 
     let repo_dir = repo.path();
 
-    print_log(&repo_dir);
+    print_git_log_graph(&repo_dir);
 
     autorebase(repo_dir, "master").expect("error autorebasing");
 
-    print_log(&repo_dir);
+    print_git_log_graph(&repo_dir);
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
 
-    let expected_graph = commit_info_graph!(
-        "540f822d14ae077991e2a722996825e4e7f9d667": CommitInfo {
+    let expected_graph = commit_graph!(
+        "540f822d14ae077991e2a722996825e4e7f9d667": CommitGraphNode {
             parents: [
                 "a6de41485a5af44adc18b599a63840c367043e39",
             ],
@@ -47,7 +47,7 @@ fn multiple_branches() {
                 "wip1",
             },
         },
-        "a6de41485a5af44adc18b599a63840c367043e39": CommitInfo {
+        "a6de41485a5af44adc18b599a63840c367043e39": CommitGraphNode {
             parents: [
                 "d3591307bd5590f14ae24d03ab41121ab94e2a90",
             ],
@@ -55,7 +55,7 @@ fn multiple_branches() {
                 "master",
             },
         },
-        "b5656b97e2a114800e6bd909e3cc5b3db3602e35": CommitInfo {
+        "b5656b97e2a114800e6bd909e3cc5b3db3602e35": CommitGraphNode {
             parents: [
                 "540f822d14ae077991e2a722996825e4e7f9d667",
             ],
@@ -63,7 +63,7 @@ fn multiple_branches() {
                 "wip2",
             },
         },
-        "d3591307bd5590f14ae24d03ab41121ab94e2a90": CommitInfo {
+        "d3591307bd5590f14ae24d03ab41121ab94e2a90": CommitGraphNode {
             parents: [],
             refs: {
                 "",
