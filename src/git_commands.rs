@@ -62,6 +62,7 @@ pub fn run_git_cmd_output(args: &[&str], working_dir: &Path) -> Result<Vec<u8>> 
 
 // Same as `run_git_cmd_output` but it sets GIT_AUTHOR_DATE and GIT_COMMITTER_DATE
 // to a fake date so you get the same hashes each run (useful for tests).
+// #[cfg(test)] // See https://github.com/rust-lang/rust/issues/84629
 pub fn run_git_cmd_output_1970(args: &[&str], working_dir: &Path) -> Result<Vec<u8>> {
     eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
 

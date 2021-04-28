@@ -11,6 +11,7 @@ argh = "0.1.4"
 anyhow = "1.0.40"
 colored = "2.0.0"
 
-[dev-dependencies]
+# tempfile should be in [dev-dependencies] but see https://github.com/rust-lang/rust/issues/84629
+# [dev-dependencies]
 # For tests
 tempfile = "3.1.0"
