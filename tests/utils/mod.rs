@@ -1,7 +1,7 @@
 use tempfile::{TempDir, tempdir};
 use std::fs::{write, remove_file};
 use std::collections::{HashMap, BTreeMap, BTreeSet};
-use crate::git_commands::*;
+use git_commands::*;
 use std::path::Path;
 use anyhow::{anyhow, Result};
 
@@ -120,9 +120,8 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
 
         args.push(&tree_object);
 
-        // Commit. Set the date to a fixed value so we get the same output
-        // each time.
-        let this_commit = run_git_cmd_output_1970(&args, repo_path).expect("error committing");
+        // Commit.
+        let this_commit = run_git_cmd_output(&args, repo_path).expect("error committing");
         let this_commit = String::from_utf8_lossy(&this_commit);
         let this_commit = this_commit.trim();
 
@@ -214,4 +213,51 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitInfo>> {
     // we just arrange things so the hashes are the same every run.
 
     Ok(commits)
+}
+
+#[macro_export]
+macro_rules! commit_info_graph {
+    (
+        $(
+            $hash:literal : CommitInfo {
+                $($field_name:ident : $field_value:tt),*
+                $(,)?
+            }
+        ),*
+        $(,)?
+    ) => {{
+        let mut graph: ::std::collections::BTreeMap<String, CommitInfo> = ::std::collections::BTreeMap::new();
+        $(
+
+            graph.insert($hash.to_string(), {
+                #[allow(unused_mut)]
+                let mut info: CommitInfo = Default::default();
+                $(
+                    commit_info_graph!(@set_field info, $field_name, $field_value);
+                )*
+                info
+            });
+        )*
+        graph
+    }};
+
+    (@set_field $object:ident, parents, [ $($hash:expr),* $(,)? ]) => {
+        $object.parents = vec![$($hash.to_string(), )*];
+    };
+
+    (@set_field $object:ident, refs, { $($hash:literal),* $(,)? }) => {
+        $object.refs = {
+            #[allow(unused_mut)]
+            let mut r = ::std::collections::BTreeSet::new();
+            $(
+                r.insert($hash.to_string());
+            )*
+            r
+        };
+    };
+}
+
+pub fn git_fixed_dates() {
+    std::env::set_var("GIT_AUTHOR_DATE", "@0 +0000");
+    std::env::set_var("GIT_COMMITTER_DATE", "@0 +0000");
 }

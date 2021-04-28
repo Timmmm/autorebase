@@ -59,31 +59,3 @@ pub fn run_git_cmd_output(args: &[&str], working_dir: &Path) -> Result<Vec<u8>> 
 
     Ok(output.stdout)
 }
-
-// Same as `run_git_cmd_output` but it sets GIT_AUTHOR_DATE and GIT_COMMITTER_DATE
-// to a fake date so you get the same hashes each run (useful for tests).
-// #[cfg(test)] // See https://github.com/rust-lang/rust/issues/84629
-pub fn run_git_cmd_output_1970(args: &[&str], working_dir: &Path) -> Result<Vec<u8>> {
-    eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
-
-    let output = Command::new("git")
-        .current_dir(working_dir)
-        .args(args)
-        .env("GIT_AUTHOR_DATE", "@0 +0000")
-        .env("GIT_COMMITTER_DATE", "@0 +0000")
-        .stderr(Stdio::inherit()) // Print stderr to console.
-        .output()?;
-
-    // Print stdout to console.
-    io::stdout().write_all(&output.stdout)?;
-
-    if !output.status.success() {
-        bail!(
-            "Command failed\n{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        ); // TODO: Better error.
-    }
-
-    Ok(output.stdout)
-}

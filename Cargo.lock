@@ -53,6 +53,7 @@ dependencies = [
  "anyhow",
  "argh",
  "colored",
+ "git_commands",
  "tempfile",
 ]
 
@@ -88,6 +89,14 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+]
+
+[[package]]
+name = "git_commands"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "colored",
 ]
 
 [[package]]

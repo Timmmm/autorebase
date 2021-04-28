@@ -1,7 +1,13 @@
-use autorebase::{autorebase, test_utils::*};
 
+mod utils;
+use utils::*;
+use autorebase::autorebase;
+
+// Test building a repo using `build_repo`.
 #[test]
 fn test_build_repo() {
+    git_fixed_dates();
+
     let root =
         commit("Hello")
         .write("a.txt", "hello")
@@ -18,55 +24,32 @@ fn test_build_repo() {
     print_log(&repo_dir);
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
-    dbg!(graph);
+
+    let expected_graph = commit_info_graph!(
+        "baf6cf8e026e065d369b3dd103c4cc73ffba52dd": CommitInfo {
+            parents: [
+                "fdc071d3ae2b15728ab5a20d32b2c781999238ba",
+            ],
+            refs: {
+                "master",
+            },
+        },
+        "fdc071d3ae2b15728ab5a20d32b2c781999238ba": CommitInfo {
+            parents: [],
+            refs: {
+                "",
+            },
+        },
+    );
+
+    assert_eq!(graph, expected_graph);
 }
 
-
-macro_rules! commit_info_graph {
-    (
-        $(
-            $hash:literal : CommitInfo {
-                $($field_name:ident : $field_value:tt),*
-                $(,)?
-            }
-        ),*
-        $(,)?
-    ) => {{
-        let mut graph: ::std::collections::BTreeMap<String, CommitInfo> = ::std::collections::BTreeMap::new();
-        $(
-
-            graph.insert($hash.to_string(), {
-                #[allow(unused_mut)]
-                let mut info: CommitInfo = Default::default();
-                $(
-                    commit_info_graph!(@set_field info, $field_name, $field_value);
-                )*
-                info
-            });
-        )*
-        graph
-    }};
-
-    (@set_field $object:ident, parents, [ $($hash:expr),* $(,)? ]) => {
-        $object.parents = vec![$($hash.to_string(), )*];
-    };
-
-    (@set_field $object:ident, refs, { $($hash:literal),* $(,)? }) => {
-        $object.refs = {
-            #[allow(unused_mut)]
-            let mut r = ::std::collections::BTreeSet::new();
-            $(
-                r.insert($hash.to_string());
-            )*
-            r
-        };
-    };
-}
-
-
-
+// Very basic autorebase test.
 #[test]
 fn test_basic_autorebase() {
+    git_fixed_dates();
+
     let root =
         commit("First")
         .write("a.txt", "hello")
@@ -97,14 +80,6 @@ fn test_basic_autorebase() {
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_info_graph!(
-        "04417144022049d97bc19e759d1955958e21f339": CommitInfo {
-            parents: [
-                "a6de41485a5af44adc18b599a63840c367043e39",
-            ],
-            refs: {
-                "wip",
-            },
-        },
         "a6de41485a5af44adc18b599a63840c367043e39": CommitInfo {
             parents: [
                 "d3591307bd5590f14ae24d03ab41121ab94e2a90",
@@ -117,6 +92,14 @@ fn test_basic_autorebase() {
             parents: [],
             refs: {
                 "",
+            },
+        },
+        "e42d214485dff70e93fdf6c66901b9ae4cc05b5a": CommitInfo {
+            parents: [
+                "a6de41485a5af44adc18b599a63840c367043e39",
+            ],
+            refs: {
+                "wip",
             },
         },
     );

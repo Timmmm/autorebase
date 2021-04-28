@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use colored::Colorize;
 
-mod git_commands;
 use git_commands::*;
 
 pub fn autorebase(repo_dir: &Path, target_branch: &str) -> Result<()> {
@@ -89,10 +88,10 @@ fn checkout_branch(branch: &str, repo_dir: &Path) -> Result<()> {
   Ok(())
 }
 
-fn is_rebasing(repo_dir: &Path) -> Result<bool> {
-  // Check `.git/rebase-merge` exists. See https://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress/67245016#67245016
-  todo!()
-}
+// fn is_rebasing(repo_dir: &Path) -> Result<bool> {
+//   // Check `.git/rebase-merge` exists. See https://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress/67245016#67245016
+//   todo!()
+// }
 
 fn attempt_rebase(repo_dir: &Path, worktree_dir: &Path, target_branch: &str) -> Result<()> {
   let rebase_ok = run_git_cmd(&["rebase", target_branch], worktree_dir);
@@ -119,9 +118,6 @@ fn attempt_rebase(repo_dir: &Path, worktree_dir: &Path, target_branch: &str) -> 
   Ok(())
 }
 
-
-// #[cfg(test)] // See https://github.com/rust-lang/rust/issues/84629
-pub mod test_utils;
 
 // Test without using test_utils.
 //

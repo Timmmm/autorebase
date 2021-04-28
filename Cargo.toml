@@ -10,8 +10,8 @@ edition = "2018"
 argh = "0.1.4"
 anyhow = "1.0.40"
 colored = "2.0.0"
+git_commands = { path = "git_commands" }
 
-# tempfile should be in [dev-dependencies] but see https://github.com/rust-lang/rust/issues/84629
-# [dev-dependencies]
+[dev-dependencies]
 # For tests
 tempfile = "3.1.0"
