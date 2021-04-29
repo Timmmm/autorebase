@@ -3,7 +3,7 @@
 use argh::FromArgs;
 use anyhow::Result;
 
-use autorebase::{get_repo_dir, autorebase};
+use autorebase::{get_repo_path, autorebase};
 
 #[derive(FromArgs)]
 /// Automatically rebase some branches.
@@ -17,9 +17,9 @@ fn main() -> Result<()> {
     let options: CliOptions = argh::from_env();
 
     // Find the repo dir in the same way git does.
-    let repo_dir = get_repo_dir()?;
+    let repo_path = get_repo_path()?;
 
-    autorebase(&repo_dir, &options.target_branch)?;
+    autorebase(&repo_path, &options.target_branch)?;
 
     Ok(())
 }

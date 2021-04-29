@@ -246,9 +246,9 @@ macro_rules! commit_graph {
         ),*
         $(,)?
     ) => {{
+        #[allow(unused_mut)]
         let mut graph: ::std::collections::BTreeMap<String, CommitGraphNode> = ::std::collections::BTreeMap::new();
         $(
-
             graph.insert($hash.to_string(), {
                 #[allow(unused_mut)]
                 let mut info: CommitGraphNode = Default::default();
