@@ -1,10 +1,20 @@
 use std::path::{Path, PathBuf};
 use anyhow::Result;
 use colored::Colorize;
-
 use git_commands::*;
 
+mod conflicts;
+use conflicts::*;
+
 pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
+    let conflicts_path = repo_path.join(".git/autorebase/conflicts.toml");
+
+    let mut conflicts = if conflicts_path.is_file() {
+        Conflicts::read_from_file(&conflicts_path)?
+    } else {
+        Default::default()
+    };
+
     let worktree_path = repo_path.join(".git/autorebase/autorebase_worktree");
 
     if !worktree_path.is_dir() {
@@ -23,6 +33,20 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     eprintln!("Branches: {:?}\n", branches);
 
     for branch in branches.iter() {
+
+        let branch_commit = run_git_cmd_output(&["rev-parse", branch], repo_path)?;
+        let branch_commit = String::from_utf8(branch_commit)?;
+
+        // If the rebase for this branch got stopped by a conflict before and
+        // it's still the same commit then skip it.
+        if conflicts.branches.get(branch) == Some(&branch_commit) {
+            eprintln!("Skipping branch {} because it had conflicts last time we tried; rebase manually", branch.yellow());
+            continue;
+        }
+
+        conflicts.branches.remove(branch);
+        conflicts.write_to_file(&conflicts_path)?;
+
         if branch == onto_branch {
             eprintln!("Skipping branch {} because it is the target", branch.green());
             continue;
@@ -39,11 +63,14 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 
         eprintln!("\nRebasing {}\n", branch.bright_green());
 
+        // Get the list of commits we will try to rebase onto (starting with `onto_branch`).
+        let target_commit_list = get_target_commit_list(&repo_path, branch, onto_branch)?;
+
         // Check out the branch.
         checkout_branch(branch, &worktree_path)?;
 
-        // Get the list of commits we will try to rebase onto (starting with `onto_branch`).
-        let target_commit_list = get_target_commit_list(&repo_path, branch, onto_branch)?;
+        let mut stopped_by_conflicts = false;
+
         for target_commit in target_commit_list {
             eprintln!("\nRebasing onto {}\n", target_commit.bright_green());
 
@@ -55,13 +82,20 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
                 }
                 RebaseResult::Conflict => {
                     eprintln!("\nRebasing onto {}: conflict\n", target_commit.yellow());
+                    stopped_by_conflicts = true;
                     continue;
                 }
             }
         }
 
-        // TODO: Store info about whether or not we were able to rebase branches, so
-        // we don't keep trying to rebase branches that can go no further.
+        if stopped_by_conflicts {
+            // Get the commit again because it will have changed (probably).
+            let new_branch_commit = run_git_cmd_output(&["rev-parse", branch], repo_path)?;
+            let new_branch_commit = String::from_utf8(new_branch_commit)?;
+
+            conflicts.branches.insert(branch.clone(), new_branch_commit);
+            conflicts.write_to_file(&conflicts_path)?;
+        }
     }
 
     Ok(())
@@ -88,6 +122,10 @@ fn get_current_branch(repo_path: &Path) -> Result<String> {
 }
 
 fn get_eligible_branches(repo_path: &Path) -> Result<Vec<String>> {
+
+    // TODO: Config system to allow specifying the branches? Maybe allow adding/removing them?
+    // Store config in `.git/autorebase/autorebase.toml` or `autorebase.toml`?
+
     let output = run_git_cmd_output(&["for-each-ref", "--format=%(refname:short)", "refs/heads"], repo_path)?;
     let output = String::from_utf8(output)?;
     Ok(output.lines().map(ToOwned::to_owned).collect())
