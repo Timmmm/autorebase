@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use colored::Colorize;
 use git_commands::*;
 
@@ -26,13 +26,24 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     // TODO: Figure out the entire tree structure.
     // Hmm for now I'll just do it the dumb way.
 
-    let branches = get_eligible_branches(&repo_path)?;
-    let current_branch = get_current_branch(&repo_path)?;
+    let all_branches = get_branches(&repo_path)?;
 
-    eprintln!("\nCurrent branch: {}", current_branch);
-    eprintln!("Branches: {:?}\n", branches);
+    for branch in all_branches.iter() {
 
-    for branch in branches.iter() {
+        if branch.branch == onto_branch {
+            eprintln!("Skipping branch {} because it is the target", branch.branch.green());
+            continue;
+        }
+        if branch.upstream.is_some() {
+            eprintln!("Skipping branch {} because it tracks upstream", branch.branch.yellow());
+            continue;
+        }
+        if branch.worktree_path.is_some() {
+            eprintln!("Skipping branch {} because it is checked out", branch.branch.yellow());
+            continue;
+        }
+
+        let branch = &branch.branch;
 
         let branch_commit = run_git_cmd_output(&["rev-parse", branch], repo_path)?;
         let branch_commit = String::from_utf8(branch_commit)?;
@@ -46,20 +57,6 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 
         conflicts.branches.remove(branch);
         conflicts.write_to_file(&conflicts_path)?;
-
-        if branch == onto_branch {
-            eprintln!("Skipping branch {} because it is the target", branch.green());
-            continue;
-        }
-        // You can't check out a branch in more than one worktree at a time so
-        // if one is already checked out in the main worktree, skip it.
-        // This does assume there are no other worktrees. Maybe we should detect
-        // if the branch is checked out anywhere directly instead in the same
-        // way that Git does it.
-        if *branch == current_branch {
-            eprintln!("Skipping branch {} because it is checked out", branch.green());
-            continue;
-        }
 
         eprintln!("\nRebasing {}\n", branch.bright_green());
 
@@ -111,27 +108,40 @@ pub fn get_repo_path() -> Result<PathBuf> {
 }
 
 fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
-    run_git_cmd(&["worktree", "add", "--detach", worktree_path.to_str().unwrap()], repo_path)?; // TODO: Don't unwrap.
+    let worktree_path = worktree_path.to_str().ok_or(anyhow!("worktree path is not unicode"))?;
+    run_git_cmd(&["worktree", "add", "--detach", worktree_path], repo_path)?;
     Ok(())
 }
 
-
-// Get the current branch name. Returns `HEAD` if detached.
-fn get_current_branch(repo_path: &Path) -> Result<String> {
-    // --symbolic-full-name makes this work even if there is a branch/tag named `HEAD`.
-    // Except it still prints `HEAD` as the output so :shrug:.
-    let output = run_git_cmd_output(&["rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"], repo_path)?;
-    Ok(String::from_utf8(output)?)
+struct BranchInfo {
+    branch: String,
+    upstream: Option<String>,
+    worktree_path: Option<String>,
 }
 
-fn get_eligible_branches(repo_path: &Path) -> Result<Vec<String>> {
+fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
+    use std::str;
 
     // TODO: Config system to allow specifying the branches? Maybe allow adding/removing them?
     // Store config in `.git/autorebase/autorebase.toml` or `autorebase.toml`?
 
-    let output = run_git_cmd_output(&["for-each-ref", "--format=%(refname:short)", "refs/heads"], repo_path)?;
-    let output = String::from_utf8(output)?;
-    Ok(output.lines().map(ToOwned::to_owned).collect())
+    let output = run_git_cmd_output(&["for-each-ref", "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)", "refs/heads"], repo_path)?;
+    let branches = output.split(|c| *c == '\n' as u8).filter(
+        |line| !line.is_empty()
+    ).map(
+        |line| {
+            let parts: Vec<&[u8]> = line.split(|c| *c == 0).collect();
+            if parts.len() != 3 {
+                bail!("for-each-ref parse error, got {} parts, expected 3", parts.len());
+            }
+            Ok(BranchInfo {
+                branch: str::from_utf8(parts[0])?.to_owned(),
+                upstream: if parts[1].is_empty() { None } else { Some(str::from_utf8(parts[1])?.to_owned()) },
+                worktree_path: if parts[2].is_empty() { None } else { Some(str::from_utf8(parts[2])?.to_owned()) },
+            })
+        }
+    ).collect::<Result<_, _>>()?;
+    Ok(branches)
 }
 
 fn get_merge_base(repo_path: &Path, a: &str, b: &str) -> Result<String> {

@@ -66,7 +66,7 @@ fn basic_autorebase() {
 
     let repo = build_repo(&root, Some("master"));
 
-    let repo_dir = repo.path();
+    let repo_dir = &repo.into_path();
 
     print_git_log_graph(&repo_dir);
 
