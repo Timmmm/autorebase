@@ -88,6 +88,9 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
             }
         }
 
+        // Detach HEAD so that the branch can be checked out again in the main worktree.
+        run_git_cmd(&["checkout", "--detach"], &worktree_path)?;
+
         if stopped_by_conflicts {
             // Get the commit again because it will have changed (probably).
             let new_branch_commit = run_git_cmd_output(&["rev-parse", branch], repo_path)?;
