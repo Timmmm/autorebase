@@ -1,5 +1,7 @@
 # Autorebase
 
+![](https://github.com/timmmm/autorebase/actions/workflows/build.yml/badge.svg)
+
 <img align="right" src="logo.svg">
 
 I work on a repo with a fast-moving `master` branch and it gets pretty tedious typing
@@ -32,10 +34,10 @@ Simply run `autorebase` in your repo. This will perform the following actions
 2. Create a temporary work tree inside `.git/autorebase` (this is currently never deleted but you can do it manually with `git worktree remove autorebase_worktree`).
 3. Get the list of branches that have no upstream, and aren't checked out.
 4. For each branch:
-   a) Try to rebase it onto `master`.
-   b) If that fails due to conflicts, abort and try again for the previous commit.
-   c) Keep retrying until we get to not rebasing at all.
-   d) If we didn't manage to rebase all the way to `master`, then mark the branch as "stuck" so it isn't attempted in future. To "unstick" it, rebase manually or add more commits to the branch.
+  1. Try to rebase it onto `master`.
+  2. If that fails due to conflicts, abort and try again for the previous commit.
+  3. Keep retrying until we get to not rebasing at all.
+  4. If we didn't manage to rebase all the way to `master`, then mark the branch as "stuck" so it isn't attempted in future. To "unstick" it, rebase manually or add more commits to the branch.
 
 Full usage is:
 
