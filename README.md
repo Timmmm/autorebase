@@ -24,7 +24,7 @@ This program tries to do that for you. If there's a conflict it tries to rebase 
 
 ## Installation
 
-Download a binary release from the Github releases page, or you can compile this using `cargo`.
+Download a binary release from [the Github releases page](https://github.com/Timmmm/autorebase/releases), or you can compile this using `cargo`.
 
 ## Usage
 
