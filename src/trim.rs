@@ -6,6 +6,7 @@ pub trait TrimAsciiWhitespace {
     /// start and end of a slice.
     fn trim_ascii_whitespace(&self) -> &[u8];
 }
+
 impl<T: Deref<Target=[u8]>> TrimAsciiWhitespace for T {
     fn trim_ascii_whitespace(&self) -> &[u8] {
         let from = match self.iter().position(|x| !x.is_ascii_whitespace()) {
