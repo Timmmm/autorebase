@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Result};
-use colored::Colorize;
 use git_commands::*;
 
 mod conflicts;
@@ -28,18 +27,32 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 
     let all_branches = get_branches(&repo_path)?;
 
+    // TODO: Run `git pull --ff-only master`, but only if it isn't checked out anywhere.
+    let onto_branch_info = all_branches.iter().find(|b| b.branch == onto_branch);
+    if let Some(onto_branch_info) = onto_branch_info {
+        if onto_branch_info.worktree_path.is_none() {
+            run_git_cmd(&["checkout", onto_branch], &worktree_path)?;
+            run_git_cmd(&["pull", "--ff-only"], &worktree_path)?;
+            run_git_cmd(&["checkout", "--detach"], &worktree_path)?;
+        } else {
+            eprintln!("Not pulling {} because it is checked out", onto_branch_info.branch);
+        }
+    } else {
+        eprintln!("Warning: {} not found", onto_branch);
+    }
+
     for branch in all_branches.iter() {
 
         if branch.branch == onto_branch {
-            eprintln!("Skipping branch {} because it is the target", branch.branch.green());
+            eprintln!("Skipping branch {} because it is the target", branch.branch);
             continue;
         }
         if branch.upstream.is_some() {
-            eprintln!("Skipping branch {} because it tracks upstream", branch.branch.yellow());
+            eprintln!("Skipping branch {} because it tracks upstream", branch.branch);
             continue;
         }
         if branch.worktree_path.is_some() {
-            eprintln!("Skipping branch {} because it is checked out", branch.branch.yellow());
+            eprintln!("Skipping branch {} because it is checked out", branch.branch);
             continue;
         }
 
@@ -51,14 +64,14 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         // If the rebase for this branch got stopped by a conflict before and
         // it's still the same commit then skip it.
         if conflicts.branches.get(branch) == Some(&branch_commit) {
-            eprintln!("Skipping branch {} because it had conflicts last time we tried; rebase manually", branch.yellow());
+            eprintln!("Skipping branch {} because it had conflicts last time we tried; rebase manually", branch);
             continue;
         }
 
         conflicts.branches.remove(branch);
         conflicts.write_to_file(&conflicts_path)?;
 
-        eprintln!("\nRebasing {}\n", branch.bright_green());
+        eprintln!("\nRebasing {}\n", branch);
 
         // Get the list of commits we will try to rebase onto (starting with `onto_branch`).
         let target_commit_list = get_target_commit_list(&repo_path, branch, onto_branch)?;
@@ -69,16 +82,16 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         let mut stopped_by_conflicts = false;
 
         for target_commit in target_commit_list {
-            eprintln!("\nRebasing onto {}\n", target_commit.bright_green());
+            eprintln!("\nRebasing onto {}\n", target_commit);
 
             let result = attempt_rebase(&repo_path, &worktree_path, &target_commit)?;
             match result {
                 RebaseResult::Success => {
-                    eprintln!("\nRebasing onto {}: success\n", target_commit.bright_green());
+                    eprintln!("\nRebasing onto {}: success\n", target_commit);
                     break;
                 }
                 RebaseResult::Conflict => {
-                    eprintln!("\nRebasing onto {}: conflict\n", target_commit.yellow());
+                    eprintln!("\nRebasing onto {}: conflict\n", target_commit);
                     stopped_by_conflicts = true;
                     continue;
                 }

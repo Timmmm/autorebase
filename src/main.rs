@@ -6,7 +6,8 @@ use anyhow::Result;
 use autorebase::{get_repo_path, autorebase};
 
 #[derive(FromArgs)]
-/// Automatically rebase some branches.
+/// Automatically pull the master branch and rebase all branches without
+/// upstreams onto it.
 struct CliOptions {
     /// the target branch (typically "master" or "develop")
     #[argh(option, default="String::from(\"master\")")]
