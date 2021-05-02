@@ -1,68 +1,66 @@
 
-use std::{path::Path, process::{Command, Stdio}, io};
-use anyhow::{bail, Result};
-use io::Write;
-use colored::Colorize;
+use std::{io, fmt, path::Path, process::{self, Command}};
+
+// Define our error types. These may be customized for our error handling cases.
+// Now we will be able to write our own errors, defer to an underlying error
+// implementation, or do something in between.
+#[derive(Debug)]
+pub enum Error {
+    Io(io::Error),
+    Process(process::Output),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            Self::Io(e) => e.fmt(f),
+            Self::Process(e) => {
+                write!(
+                    f,
+                    "process exited with error code {}\nStdout: {}\nStderr: {}\n",
+                    e.status,
+                    String::from_utf8_lossy(&e.stdout),
+                    String::from_utf8_lossy(&e.stderr),
+                )
+            }
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Self::Io(e)
+    }
+}
+
+impl std::error::Error for Error {
+}
+
 
 /// Run a git command with the given arguments in the current directory.
-/// Return the standard output. The command and stdout/err are printed to the console.
-pub fn run_git_cmd_output_cwd(args: &[&str]) -> Result<Vec<u8>> {
-    eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
-
-    let output = Command::new("git")
-        .args(args)
-        .stderr(Stdio::inherit()) // Print stderr to console.
-        .output()?;
-
-    // Print stdout to console.
-    io::stdout().write_all(&output.stdout)?;
-
-    if !output.status.success() {
-        bail!("Command failed with exit code {}", output.status);
-    }
-
-    Ok(output.stdout)
+pub fn git_cwd(args: &[&str]) -> Result<process::Output, Error> {
+    git_internal(args, None)
 }
 
 /// Run a git command with the given arguments in the given directory.
-/// The command and stdout/err are printed to the console.
-pub fn run_git_cmd(args: &[&str], working_dir: &Path) -> Result<()> {
-    eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
-
-    let status = Command::new("git")
-        .current_dir(working_dir)
-        .args(args)
-        .status()?;
-
-    if !status.success() {
-        bail!("Command failed with exit code: {}", status);
-    }
-
-    Ok(())
+pub fn git(args: &[&str], working_dir: &Path) -> Result<process::Output, Error> {
+    git_internal(args, Some(working_dir))
 }
 
-/// Run a git command with the given arguments in the given directory.
-/// Return the standard output. The command and stdout/err are printed to the console.
-pub fn run_git_cmd_output(args: &[&str], working_dir: &Path) -> Result<Vec<u8>> {
-    eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
-
-    let output = Command::new("git")
-        .current_dir(working_dir)
-        .args(args)
-        .stderr(Stdio::inherit()) // Print stderr to console.
-        .output()?;
-
-    // Print stdout to console.
-    io::stdout().write_all(&output.stdout)?;
-
-    if !output.status.success() {
-        bail!(
-            "Command failed with exit code {}\nStdout:{}\nStderr:{}\n",
-            output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        );
+pub fn git_internal(args: &[&str], working_dir: Option<&Path>) -> Result<process::Output, Error> {
+    // eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
+    let mut command = Command::new("git");
+    if let Some(working_dir) = working_dir {
+        command.current_dir(working_dir);
     }
 
-    Ok(output.stdout)
+    let output = command
+        .args(args)
+        .output()?;
+
+    if !output.status.success() {
+        return Err(Error::Process(output));
+    }
+
+    Ok(output)
 }

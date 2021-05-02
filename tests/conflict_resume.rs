@@ -1,7 +1,7 @@
 mod utils;
 use utils::*;
 use autorebase::autorebase;
-use git_commands::run_git_cmd;
+use git_commands::git;
 use std::fs;
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts,
@@ -92,10 +92,10 @@ fn conflict_resume() {
     assert_eq!(graph, expected_graph);
 
     // Now modify master so there's no conflict.
-    run_git_cmd(&["checkout", "master"], repo_dir).expect("error checking out master");
+    git(&["checkout", "master"], repo_dir).expect("error checking out master");
     fs::remove_file(repo_dir.join("b.txt")).expect("error removing file");
-    run_git_cmd(&["add", "."], repo_dir).expect("error adding .");
-    run_git_cmd(&["commit", "-m", "Remove conflict"], repo_dir).expect("error committing");
+    git(&["add", "."], repo_dir).expect("error adding .");
+    git(&["commit", "-m", "Remove conflict"], repo_dir).expect("error committing");
 
     // Ok if we run `autorebase` again we should expect it not to change anything.
 
@@ -160,13 +160,13 @@ fn conflict_resume() {
     assert_eq!(graph, expected_graph);
 
     // Now make an unrelated commit on the `wip` branch.
-    run_git_cmd(&["checkout", "wip"], repo_dir).expect("error checking out wip");
+    git(&["checkout", "wip"], repo_dir).expect("error checking out wip");
     fs::write(repo_dir.join("c.txt"), "unrelated").expect("error writing file");
-    run_git_cmd(&["add", "."], repo_dir).expect("error adding .");
-    run_git_cmd(&["commit", "-m", "Unrelated change"], repo_dir).expect("error committing");
+    git(&["add", "."], repo_dir).expect("error adding .");
+    git(&["commit", "-m", "Unrelated change"], repo_dir).expect("error committing");
 
     // Check out master again so `wip` can be autorebased.
-    run_git_cmd(&["checkout", "master"], repo_dir).expect("error checking out master");
+    git(&["checkout", "master"], repo_dir).expect("error checking out master");
 
 
     // Ok if we run `autorebase` is should succesfully rebase to master.

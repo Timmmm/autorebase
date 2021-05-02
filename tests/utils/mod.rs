@@ -15,18 +15,18 @@ pub fn git_fixed_dates() {
 /// Create a temporary directory and initialise it as a Git repo.
 pub fn create_temporary_git_repo() -> TempDir {
     let repo_dir = tempdir().expect("Couldn't create temporary directory");
-    run_git_cmd(&["init", "--initial-branch=master"], &repo_dir.path()).expect("error initialising git repo");
+    git(&["init", "--initial-branch=master"], &repo_dir.path()).expect("error initialising git repo");
     // You have to set these otherwise Git can't do commits.
-    run_git_cmd(&["config", "user.email", "me@example.com"], &repo_dir.path()).expect("error setting config");
-    run_git_cmd(&["config", "user.name", "Me"], &repo_dir.path()).expect("error setting config");
+    git(&["config", "user.email", "me@example.com"], &repo_dir.path()).expect("error setting config");
+    git(&["config", "user.name", "Me"], &repo_dir.path()).expect("error setting config");
     // Hide detached head warnings.
-    run_git_cmd(&["config", "advice.detachedHead", "false"], &repo_dir.path()).expect("error setting config");
+    git(&["config", "advice.detachedHead", "false"], &repo_dir.path()).expect("error setting config");
     repo_dir
 }
 
 // Run `git log` to show the commit graph.
 pub fn print_git_log_graph(repo_dir: &Path) {
-    run_git_cmd(&["--no-pager", "log", "--oneline", "--decorate", "--graph", "--all"], repo_dir).expect("git log failed");
+    git(&["--no-pager", "log", "--oneline", "--decorate", "--graph", "--all"], repo_dir).expect("git log failed");
 }
 
 /// A commit description, used to build Git repos.
@@ -118,8 +118,8 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
             }
         }
 
-        run_git_cmd(&["add", "."], repo_path).expect("error adding changes");
-        let tree_object = run_git_cmd_output(&["write-tree"], repo_path).expect("error writing tree");
+        git(&["add", "."], repo_path).expect("error adding changes");
+        let tree_object = git(&["write-tree"], repo_path).expect("error writing tree").stdout;
         let tree_object = String::from_utf8_lossy(&tree_object);
         let tree_object = tree_object.trim();
 
@@ -138,16 +138,16 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
         args.push(&tree_object);
 
         // Commit.
-        let this_commit = run_git_cmd_output(&args, repo_path).expect("error committing");
+        let this_commit = git(&args, repo_path).expect("error committing").stdout;
         let this_commit = String::from_utf8_lossy(&this_commit);
         let this_commit = this_commit.trim();
 
         // Check it out in case we want to set branches.
-        run_git_cmd(&["checkout", this_commit], repo_path).expect("error checking out commit");
+        git(&["checkout", this_commit], repo_path).expect("error checking out commit");
 
         // Set branches.
         for branch in c.branches.iter() {
-            run_git_cmd(&["branch", branch], repo_path).expect("error setting branch");
+            git(&["branch", branch], repo_path).expect("error setting branch");
         }
 
         if let Some(id) = c.id {
@@ -157,7 +157,7 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
         // Process the children.
         for child in c.children.iter() {
             // Checkout this commit.
-            run_git_cmd(&["checkout", &this_commit], repo_path).expect("error checking out commit");
+            git(&["checkout", &this_commit], repo_path).expect("error checking out commit");
             process_commit(child, repo_path, Some(&this_commit), hash_by_id);
         }
     }
@@ -167,7 +167,7 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
     process_commit(root, repo.path(), None, &mut hash_by_id);
 
     if let Some(checkout_when_done) = checkout_when_done {
-        run_git_cmd(&["checkout", checkout_when_done], repo.path()).expect("couldn't check out final thing");
+        git(&["checkout", checkout_when_done], repo.path()).expect("couldn't check out final thing");
     }
 
     repo
@@ -193,7 +193,7 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitGraphNod
 
     let mut commits: BTreeMap<String, CommitGraphNode> = BTreeMap::new();
 
-    let commit_parents = run_git_cmd_output(&["log", "--all", "--format=%H %P"], repo_dir)?;
+    let commit_parents = git(&["log", "--all", "--format=%H %P"], repo_dir)?.stdout;
     let commit_parents = String::from_utf8_lossy(&commit_parents);
     for line in commit_parents.lines() {
         let mut parts = line.split_ascii_whitespace();
@@ -201,7 +201,7 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitGraphNod
         commits.entry(commit.to_string()).or_default().parents = parts.map(|p| p.to_owned()).collect();
     }
 
-    let commit_refs = run_git_cmd_output(&["log", "--all", "--format=%H,%D"], repo_dir)?;
+    let commit_refs = git(&["log", "--all", "--format=%H,%D"], repo_dir)?.stdout;
     let commit_refs = String::from_utf8_lossy(&commit_refs);
     for line in commit_refs.lines() {
         let mut parts = line.split(',');
@@ -218,7 +218,7 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitGraphNod
         ).collect();
     }
 
-    // let commit_subject = run_git_cmd_output(&["log", "--all", "--format=%H%x00%s"], repo_dir)?;
+    // let commit_subject = git(&["log", "--all", "--format=%H%x00%s"], repo_dir)?.stdout;
     // let commit_subject = String::from_utf8_lossy(&commit_subject);
     // for line in commit_subject.lines() {
     //     let mut parts = line.split('\x00');

@@ -31,9 +31,9 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     let onto_branch_info = all_branches.iter().find(|b| b.branch == onto_branch);
     if let Some(onto_branch_info) = onto_branch_info {
         if onto_branch_info.worktree_path.is_none() {
-            run_git_cmd(&["checkout", onto_branch], &worktree_path)?;
-            run_git_cmd(&["pull", "--ff-only"], &worktree_path)?;
-            run_git_cmd(&["checkout", "--detach"], &worktree_path)?;
+            git(&["checkout", onto_branch], &worktree_path)?;
+            git(&["pull", "--ff-only"], &worktree_path)?;
+            git(&["checkout", "--detach"], &worktree_path)?;
         } else {
             eprintln!("Not pulling {} because it is checked out", onto_branch_info.branch);
         }
@@ -58,7 +58,7 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 
         let branch = &branch.branch;
 
-        let branch_commit = run_git_cmd_output(&["rev-parse", branch], repo_path)?;
+        let branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
         let branch_commit = String::from_utf8(branch_commit)?;
 
         // If the rebase for this branch got stopped by a conflict before and
@@ -99,11 +99,11 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         }
 
         // Detach HEAD so that the branch can be checked out again in the main worktree.
-        run_git_cmd(&["checkout", "--detach"], &worktree_path)?;
+        git(&["checkout", "--detach"], &worktree_path)?;
 
         if stopped_by_conflicts {
             // Get the commit again because it will have changed (probably).
-            let new_branch_commit = run_git_cmd_output(&["rev-parse", branch], repo_path)?;
+            let new_branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
             let new_branch_commit = String::from_utf8(new_branch_commit)?;
 
             conflicts.branches.insert(branch.clone(), new_branch_commit);
@@ -116,13 +116,13 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 
 /// Utility function to get the repo dir for the current directory.
 pub fn get_repo_path() -> Result<PathBuf> {
-    let output = run_git_cmd_output_cwd(&["rev-parse", "--show-toplevel"])?;
+    let output = git_cwd(&["rev-parse", "--show-toplevel"])?.stdout;
     Ok(PathBuf::from(String::from_utf8(output)?))
 }
 
 fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
     let worktree_path = worktree_path.to_str().ok_or(anyhow!("worktree path is not unicode"))?;
-    run_git_cmd(&["worktree", "add", "--detach", worktree_path], repo_path)?;
+    git(&["worktree", "add", "--detach", worktree_path], repo_path)?;
     Ok(())
 }
 
@@ -138,7 +138,7 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
     // TODO: Config system to allow specifying the branches? Maybe allow adding/removing them?
     // Store config in `.git/autorebase/autorebase.toml` or `autorebase.toml`?
 
-    let output = run_git_cmd_output(&["for-each-ref", "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)", "refs/heads"], repo_path)?;
+    let output = git(&["for-each-ref", "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)", "refs/heads"], repo_path)?.stdout;
     let branches = output.split(|c| *c == '\n' as u8).filter(
         |line| !line.is_empty()
     ).map(
@@ -158,14 +158,14 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
 }
 
 fn get_merge_base(repo_path: &Path, a: &str, b: &str) -> Result<String> {
-    let output = run_git_cmd_output(&["merge-base", a, b], repo_path)?;
+    let output = git(&["merge-base", a, b], repo_path)?.stdout;
     let output = String::from_utf8(output)?;
     // TODO: Could be very slightly more efficient if we trim whitespace from the Vec<u8> instead.
     Ok(output.trim().to_owned())
 }
 
 fn checkout_branch(branch: &str, repo_path: &Path) -> Result<()> {
-    run_git_cmd(&["switch", branch], repo_path)?;
+    git(&["switch", branch], repo_path)?;
     Ok(())
 }
 
@@ -190,7 +190,7 @@ enum RebaseResult {
 }
 
 fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<RebaseResult> {
-    let rebase_ok = run_git_cmd(&["rebase", onto], worktree_path);
+    let rebase_ok = git(&["rebase", onto], worktree_path);
     if rebase_ok.is_ok() {
         return Ok(RebaseResult::Success)
     }
@@ -201,7 +201,7 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
 
     if is_rebasing(repo_path, Some("autorebase_worktree")) {
         // Abort the rebase.
-        run_git_cmd(&["rebase", "--abort"], worktree_path)?;
+        git(&["rebase", "--abort"], worktree_path)?;
     }
 
     Ok(RebaseResult::Conflict)
@@ -210,7 +210,7 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
 fn get_target_commit_list(repo_path: &Path, branch: &str, onto: &str) -> Result<Vec<String>> {
     let merge_base = get_merge_base(repo_path, branch, onto)?;
 
-    let output = run_git_cmd_output(&["log", "--format=%H", &format!("{}..{}", merge_base, onto)], repo_path)?;
+    let output = git(&["log", "--format=%H", &format!("{}..{}", merge_base, onto)], repo_path)?.stdout;
     let output = String::from_utf8(output)?;
     Ok(output.lines().map(ToOwned::to_owned).collect())
 }
