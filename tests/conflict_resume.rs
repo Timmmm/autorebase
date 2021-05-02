@@ -107,8 +107,6 @@ fn conflict_resume() {
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
 
-    dbg!(&graph);
-
     let expected_graph = commit_graph!(
         "211ae909a7bf0a2052009b8c21bebc6947591277": CommitGraphNode {
             parents: [
@@ -178,8 +176,6 @@ fn conflict_resume() {
     print_git_log_graph(&repo_dir);
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
-
-    dbg!(&graph);
 
     let expected_graph = commit_graph!(
         "20b78857d9e5095469d9f91a5de77d0c36813b46": CommitGraphNode {

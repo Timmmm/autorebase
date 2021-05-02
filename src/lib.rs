@@ -139,9 +139,9 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 
             // Get the commit again because it will have changed (probably).
             let new_branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
-            let new_branch_commit = String::from_utf8(new_branch_commit)?;
+            let new_branch_commit = std::str::from_utf8(new_branch_commit.trim_ascii_whitespace())?;
 
-            conflicts.branches.insert(branch.clone(), new_branch_commit);
+            conflicts.branches.insert(branch.clone(), new_branch_commit.to_owned());
             conflicts.write_to_file(&conflicts_path)?;
         }
     }

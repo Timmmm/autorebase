@@ -43,8 +43,6 @@ fn conflict() {
 
     let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
 
-    dbg!(&graph);
-
     let expected_graph = commit_graph!(
         "386e8eec713b111eca536adc310dfccf22323ad7": CommitGraphNode {
             parents: [

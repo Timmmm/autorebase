@@ -1,5 +1,5 @@
 use tempfile::{TempDir, tempdir};
-use std::fs::{write, remove_file};
+use std::{fs::{write, remove_file}, io::Write};
 use std::collections::{HashMap, BTreeMap, BTreeSet};
 use git_commands::*;
 use std::path::Path;
@@ -26,7 +26,8 @@ pub fn create_temporary_git_repo() -> TempDir {
 
 // Run `git log` to show the commit graph.
 pub fn print_git_log_graph(repo_dir: &Path) {
-    git(&["--no-pager", "log", "--oneline", "--decorate", "--graph", "--all"], repo_dir).expect("git log failed");
+    let out = git(&["--no-pager", "log", "--oneline", "--decorate", "--graph", "--all", "--color=always"], repo_dir).expect("git log failed").stdout;
+    println!("\n{}\n", String::from_utf8_lossy(&out));
 }
 
 /// A commit description, used to build Git repos.
