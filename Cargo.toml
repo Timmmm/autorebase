@@ -9,9 +9,9 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.40"
 argh = "0.1.4"
+colored = "2.0.0"
 git_commands = { path = "git_commands" }
 serde = { version = "1.0", features = ["derive"] }
-termion = "1.5.6"
 toml = "0.5"
 
 [dev-dependencies]
