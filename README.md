@@ -1,6 +1,6 @@
-# Autorebase
-
 ![](https://github.com/timmmm/autorebase/actions/workflows/build.yml/badge.svg)
+
+# Autorebase
 
 <img align="right" src="logo.svg">
 
