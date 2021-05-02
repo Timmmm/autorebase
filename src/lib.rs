@@ -20,7 +20,7 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     let worktree_path = repo_path.join(".git/autorebase/autorebase_worktree");
 
     if !worktree_path.is_dir() {
-        eprintln!("{}", "• Creating worktree...".yellow());
+        eprint!("{}", "• Creating worktree...".yellow());
         create_scratch_worktree(&repo_path, &worktree_path)?;
         eprintln!("\r{}", "• Creating worktree...".green());
     }
@@ -30,38 +30,68 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     // TODO: Figure out the entire tree structure.
     // Hmm for now I'll just do it the dumb way.
 
+    eprint!("{}", "• Getting branches...".yellow());
     let all_branches = get_branches(&repo_path)?;
+    let onto_branch_info = all_branches.iter().find(|b| b.branch == onto_branch);
+    eprintln!("\r{}", "• Getting branches...".green());
+
+    for branch in all_branches.iter() {
+        if branch.branch == onto_branch {
+            eprintln!("    - {} (target branch)", branch.branch.blue().bold());
+        } else if branch.upstream.is_some() {
+            eprintln!("    - {} (skipping because it is checked out)", branch.branch.bold());
+        } else if branch.worktree_path.is_some() {
+            eprintln!("    - {} (skipping because it has an upstream)", branch.branch.bold());
+        } else {
+            eprintln!("    - {}", branch.branch.green().bold());
+        }
+    }
+
+    let rebase_branches: Vec<&BranchInfo> = all_branches.iter().filter(|branch| {
+        branch.branch != onto_branch && branch.upstream.is_none() && branch.worktree_path.is_none()
+    }).collect();
 
     // TODO: Run `git pull --ff-only master`, but only if it isn't checked out anywhere.
-    let onto_branch_info = all_branches.iter().find(|b| b.branch == onto_branch);
     if let Some(onto_branch_info) = onto_branch_info {
         if onto_branch_info.worktree_path.is_none() {
+            eprint!(
+                "{} {}{}",
+                "• Pulling".yellow(),
+                onto_branch.yellow().bold(),
+                "...".yellow(),
+            );
+
             git(&["checkout", onto_branch], &worktree_path)?;
             git(&["pull", "--ff-only"], &worktree_path)?;
             git(&["checkout", "--detach"], &worktree_path)?;
+
+            eprint!(
+                "{} {}{}",
+                "• Pulling".green(),
+                onto_branch.green().bold(),
+                "...".green(),
+            );
         } else {
-            eprintln!("Not pulling {} because it is checked out", onto_branch_info.branch);
-        }
+            eprintln!(
+                "{} {} {}",
+                "• Not pulling target branch",
+                onto_branch.bold(),
+                "because it is checked out",
+            );
+            }
     } else {
-        eprintln!("Warning: {} not found", onto_branch);
+        eprintln!(
+            "{} {} {}",
+            "• Warning: Not pulling target branch".yellow(),
+            onto_branch.yellow().bold(),
+            "because it was not found".yellow(),
+        );
     }
 
-    for branch in all_branches.iter() {
-
-        if branch.branch == onto_branch {
-            eprintln!("Skipping branch {} because it is the target", branch.branch);
-            continue;
-        }
-        if branch.upstream.is_some() {
-            eprintln!("Skipping branch {} because it tracks upstream", branch.branch);
-            continue;
-        }
-        if branch.worktree_path.is_some() {
-            eprintln!("Skipping branch {} because it is checked out", branch.branch);
-            continue;
-        }
-
+    for branch in rebase_branches.iter() {
         let branch = &branch.branch;
+
+        eprintln!("• Rebasing {}...", branch.bold());
 
         let branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
         let branch_commit = std::str::from_utf8(branch_commit.trim_ascii_whitespace())?;
@@ -69,14 +99,12 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         // If the rebase for this branch got stopped by a conflict before and
         // it's still the same commit then skip it.
         if conflicts.branches.get(branch).map(|s| s.as_str()) == Some(branch_commit) {
-            eprintln!("Skipping branch {} because it had conflicts last time we tried; rebase manually", branch);
+            eprintln!("{}", "• Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
             continue;
         }
 
         conflicts.branches.remove(branch);
         conflicts.write_to_file(&conflicts_path)?;
-
-        eprintln!("\nRebasing {}\n", branch);
 
         // Get the list of commits we will try to rebase onto (starting with `onto_branch`).
         let target_commit_list = get_target_commit_list(&repo_path, branch, onto_branch)?;
@@ -87,16 +115,16 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         let mut stopped_by_conflicts = false;
 
         for target_commit in target_commit_list {
-            eprintln!("\nRebasing onto {}\n", target_commit);
+            eprintln!("    - Rebasing onto {}", target_commit.bold());
 
             let result = attempt_rebase(&repo_path, &worktree_path, &target_commit)?;
             match result {
                 RebaseResult::Success => {
-                    eprintln!("\nRebasing onto {}: success\n", target_commit);
+                    eprintln!("{}", "    - Success!".green());
                     break;
                 }
                 RebaseResult::Conflict => {
-                    eprintln!("\nRebasing onto {}: conflict\n", target_commit);
+                    eprintln!("{}", "    - Conflicts...".yellow());
                     stopped_by_conflicts = true;
                     continue;
                 }
@@ -107,6 +135,8 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         git(&["checkout", "--detach"], &worktree_path)?;
 
         if stopped_by_conflicts {
+            eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
+
             // Get the commit again because it will have changed (probably).
             let new_branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
             let new_branch_commit = String::from_utf8(new_branch_commit)?;
@@ -132,6 +162,7 @@ fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()>
     Ok(())
 }
 
+#[derive(Debug)]
 struct BranchInfo {
     branch: String,
     upstream: Option<String>,

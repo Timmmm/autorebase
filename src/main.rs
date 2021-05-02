@@ -15,6 +15,16 @@ struct CliOptions {
 }
 
 fn main() -> Result<()> {
+    let res = run();
+    if res.is_err() {
+        // Print a newline because there may be a half finished output
+        // (e.g. using `eprint!()` instead of `eprintln!()`.
+        eprintln!();
+    }
+    res
+}
+
+fn run() -> Result<()> {
     let options: CliOptions = argh::from_env();
 
     // Find the repo dir in the same way git does.
