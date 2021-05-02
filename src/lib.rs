@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Result};
 use git_commands::*;
+use colored::*;
 
 mod conflicts;
 use conflicts::*;
+mod trim;
+use trim::*;
 
 pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     let conflicts_path = repo_path.join(".git/autorebase/conflicts.toml");
@@ -17,7 +20,9 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     let worktree_path = repo_path.join(".git/autorebase/autorebase_worktree");
 
     if !worktree_path.is_dir() {
+        eprintln!("{}", "• Creating worktree...".yellow());
         create_scratch_worktree(&repo_path, &worktree_path)?;
+        eprintln!("\r{}", "• Creating worktree...".green());
     }
 
     // For each branch, find the common ancestor with `master`. There must only be one.
@@ -59,11 +64,11 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         let branch = &branch.branch;
 
         let branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
-        let branch_commit = String::from_utf8(branch_commit)?;
+        let branch_commit = std::str::from_utf8(branch_commit.trim_ascii_whitespace())?;
 
         // If the rebase for this branch got stopped by a conflict before and
         // it's still the same commit then skip it.
-        if conflicts.branches.get(branch) == Some(&branch_commit) {
+        if conflicts.branches.get(branch).map(|s| s.as_str()) == Some(branch_commit) {
             eprintln!("Skipping branch {} because it had conflicts last time we tried; rebase manually", branch);
             continue;
         }
@@ -117,7 +122,8 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
 /// Utility function to get the repo dir for the current directory.
 pub fn get_repo_path() -> Result<PathBuf> {
     let output = git_cwd(&["rev-parse", "--show-toplevel"])?.stdout;
-    Ok(PathBuf::from(String::from_utf8(output)?))
+    let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
+    Ok(PathBuf::from(output))
 }
 
 fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
@@ -159,9 +165,8 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
 
 fn get_merge_base(repo_path: &Path, a: &str, b: &str) -> Result<String> {
     let output = git(&["merge-base", a, b], repo_path)?.stdout;
-    let output = String::from_utf8(output)?;
-    // TODO: Could be very slightly more efficient if we trim whitespace from the Vec<u8> instead.
-    Ok(output.trim().to_owned())
+    let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
+    Ok(output.to_owned())
 }
 
 fn checkout_branch(branch: &str, repo_path: &Path) -> Result<()> {

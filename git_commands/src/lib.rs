@@ -59,7 +59,8 @@ pub fn git(args: &[&str], working_dir: &Path) -> Result<process::Output, Error> 
 }
 
 pub fn git_internal(args: &[&str], working_dir: Option<&Path>) -> Result<process::Output, Error> {
-    // eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
+    eprintln!("~ {} {}", "git".bold(), args.join(" ").bold());
+
     let mut command = Command::new("git");
     if let Some(working_dir) = working_dir {
         command.current_dir(working_dir);
