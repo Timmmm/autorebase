@@ -65,8 +65,8 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
             git(&["pull", "--ff-only"], &worktree_path)?;
             git(&["checkout", "--detach"], &worktree_path)?;
 
-            eprint!(
-                "{} {}{}",
+            eprintln!(
+                "\r{} {}{}",
                 "• Pulling".green(),
                 onto_branch.green().bold(),
                 "...".green(),
