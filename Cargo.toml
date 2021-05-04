@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 description = "Automatically rebase feature branches onto master"
 keywords = ["git", "rebase"]
+repository = "https://github.com/Timmmm/autorebase"
 
 [dependencies]
 anyhow = "1.0.40"
