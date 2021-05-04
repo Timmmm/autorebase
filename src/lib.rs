@@ -169,10 +169,19 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
             }
         }
 
-        if branch.worktree.is_none() {
-            // Detach HEAD so that the branch can be checked out again in the main worktree.
-            git(&["checkout", "--detach"], &worktree_path)?;
-        }
+        // Detach HEAD in the scratch worktree and ensure it is on a commit that
+        // we want to keep. This ensures that
+        //
+        //   a) If we did the rebase in the scratch worktree then the branch can
+        //      be checked out elsewhere, and
+        //   b) If we did the rebase in the user's worktree then the scratch
+        //      worktree doesn't keep a reference to the commit around weirdly
+        //      (it shows up in `git log` with no refs).
+        //
+        // This doesn't run afoul of git's rule about checking out the branch
+        // in more than one worktree because of `--detach`.
+        // to the old pre-rebase commit.
+        git(&["checkout", "--detach", &branch.branch], &worktree_path)?;
 
         if stopped_by_conflicts {
             eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
