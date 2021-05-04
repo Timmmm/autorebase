@@ -39,9 +39,9 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
         if branch.branch == onto_branch {
             eprintln!("    - {} (target branch)", branch.branch.blue().bold());
         } else if branch.upstream.is_some() {
-            eprintln!("    - {} (skipping because it is checked out)", branch.branch.bold());
-        } else if branch.worktree_path.is_some() {
             eprintln!("    - {} (skipping because it has an upstream)", branch.branch.bold());
+        } else if branch.worktree_path.is_some() {
+            eprintln!("    - {} (skipping because it is checked out)", branch.branch.bold());
         } else {
             eprintln!("    - {}", branch.branch.green().bold());
         }
