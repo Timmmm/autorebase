@@ -10,7 +10,7 @@ edition = "2018"
 anyhow = "1.0.40"
 argh = "0.1.4"
 colored = "2.0.0"
-git_commands = { path = "git_commands" }
+git_commands = { path = "git_commands", version = "0.2.0" }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
 
