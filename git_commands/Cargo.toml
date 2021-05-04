@@ -3,6 +3,8 @@ name = "git_commands"
 version = "0.2.0"
 authors = ["Tim Hutt <timh@graphcore.ai>"]
 edition = "2018"
+license = "MIT"
+description = "Internal crate for autorebase"
 
 [dependencies]
 anyhow = "1.0.40"

@@ -3,8 +3,9 @@ name = "autorebase"
 version = "0.2.0"
 authors = ["Tim Hutt <timh@graphcore.ai>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+description = "Automatically rebase feature branches onto master"
+keywords = ["git", "rebase"]
 
 [dependencies]
 anyhow = "1.0.40"
