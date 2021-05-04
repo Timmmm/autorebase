@@ -1,5 +1,5 @@
 use tempfile::{TempDir, tempdir};
-use std::{fs::{write, remove_file}, io::Write};
+use std::fs::{write, remove_file};
 use std::collections::{HashMap, BTreeMap, BTreeSet};
 use git_commands::*;
 use std::path::Path;

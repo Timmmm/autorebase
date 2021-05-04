@@ -35,50 +35,81 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     let onto_branch_info = all_branches.iter().find(|b| b.branch == onto_branch);
     eprintln!("\r{}", "• Getting branches...".green());
 
+    // Print a summary of the branches.
     for branch in all_branches.iter() {
         if branch.branch == onto_branch {
             eprintln!("    - {} (target branch)", branch.branch.blue().bold());
         } else if branch.upstream.is_some() {
             eprintln!("    - {} (skipping because it has an upstream)", branch.branch.bold());
-        } else if branch.worktree_path.is_some() {
-            eprintln!("    - {} (skipping because it is checked out)", branch.branch.bold());
+        } else if matches!(&branch.worktree, Some(worktree) if !worktree.clean) {
+            eprintln!("    - {} (skipping because it is checked out and not clean)", branch.branch.bold());
         } else {
             eprintln!("    - {}", branch.branch.green().bold());
         }
     }
 
+    // Get the branches that we will actually attempt to rebase.
     let rebase_branches: Vec<&BranchInfo> = all_branches.iter().filter(|branch| {
-        branch.branch != onto_branch && branch.upstream.is_none() && branch.worktree_path.is_none()
+        branch.branch != onto_branch && branch.upstream.is_none() && !matches!(&branch.worktree, Some(worktree) if !worktree.clean)
     }).collect();
 
-    // TODO: Run `git pull --ff-only master`, but only if it isn't checked out anywhere.
+    // Pull master.
     if let Some(onto_branch_info) = onto_branch_info {
-        if onto_branch_info.worktree_path.is_none() {
-            eprint!(
-                "{} {}{}",
-                "• Pulling".yellow(),
-                onto_branch.yellow().bold(),
-                "...".yellow(),
-            );
+        if onto_branch_info.upstream.is_some() {
+            if let Some(onto_branch_worktree_info) = &onto_branch_info.worktree {
+                // It's checked out somewhere. Check if that worktree is clean,
+                // if so pull it there.
+                if onto_branch_worktree_info.clean {
+                    eprint!(
+                        "{} {}{}",
+                        "• Pulling".yellow(),
+                        onto_branch.yellow().bold(),
+                        "...".yellow(),
+                    );
 
-            git(&["checkout", onto_branch], &worktree_path)?;
-            git(&["pull", "--ff-only"], &worktree_path)?;
-            git(&["checkout", "--detach"], &worktree_path)?;
+                    git(&["pull", "--ff-only"], &onto_branch_worktree_info.path)?;
 
-            eprintln!(
-                "\r{} {}{}",
-                "• Pulling".green(),
-                onto_branch.green().bold(),
-                "...".green(),
-            );
+                    eprintln!(
+                        "\r{} {}{}",
+                        "• Pulling".green(),
+                        onto_branch.green().bold(),
+                        "...".green(),
+                    );
+                } else {
+                    eprintln!(
+                        "{} {} {}",
+                        "• Not pulling target branch",
+                        onto_branch.bold(),
+                        "because it is checked out and has pending changes",
+                    );
+                }
+            } else {
+                eprint!(
+                    "{} {}{}",
+                    "• Pulling".yellow(),
+                    onto_branch.yellow().bold(),
+                    "...".yellow(),
+                );
+
+                git(&["checkout", onto_branch], &worktree_path)?;
+                git(&["pull", "--ff-only"], &worktree_path)?;
+                git(&["checkout", "--detach"], &worktree_path)?;
+
+                eprintln!(
+                    "\r{} {}{}",
+                    "• Pulling".green(),
+                    onto_branch.green().bold(),
+                    "...".green(),
+                );
+            }
         } else {
             eprintln!(
                 "{} {} {}",
-                "• Not pulling target branch",
-                onto_branch.bold(),
-                "because it is checked out",
+                "• Warning: Not pulling target branch".yellow(),
+                onto_branch.yellow().bold(),
+                "because it has no upstream".yellow(),
             );
-            }
+        }
     } else {
         eprintln!(
             "{} {} {}",
@@ -89,35 +120,42 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     }
 
     for branch in rebase_branches.iter() {
-        let branch = &branch.branch;
+        eprintln!("• Rebasing {}...", branch.branch.bold());
 
-        eprintln!("• Rebasing {}...", branch.bold());
-
-        let branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
+        let branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
         let branch_commit = std::str::from_utf8(branch_commit.trim_ascii_whitespace())?;
 
         // If the rebase for this branch got stopped by a conflict before and
         // it's still the same commit then skip it.
-        if conflicts.branches.get(branch).map(|s| s.as_str()) == Some(branch_commit) {
+        if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(branch_commit) {
             eprintln!("{}", "• Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
             continue;
         }
 
-        conflicts.branches.remove(branch);
+        conflicts.branches.remove(&branch.branch);
         conflicts.write_to_file(&conflicts_path)?;
 
         // Get the list of commits we will try to rebase onto (starting with `onto_branch`).
-        let target_commit_list = get_target_commit_list(&repo_path, branch, onto_branch)?;
+        let target_commit_list = get_target_commit_list(&repo_path, &branch.branch, onto_branch)?;
 
-        // Check out the branch.
-        checkout_branch(branch, &worktree_path)?;
+        // Check out the branch, unless it is already checked out.
+        if branch.worktree.is_none() {
+            checkout_branch(&branch.branch, &worktree_path)?;
+        }
+
+        // Path where we'll do the rebase.
+        let rebase_worktree_path = if let Some(worktree) = &branch.worktree {
+            &worktree.path
+        } else {
+            &worktree_path
+        };
 
         let mut stopped_by_conflicts = false;
 
         for target_commit in target_commit_list {
             eprintln!("    - Rebasing onto {}", target_commit.bold());
 
-            let result = attempt_rebase(&repo_path, &worktree_path, &target_commit)?;
+            let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit)?;
             match result {
                 RebaseResult::Success => {
                     eprintln!("{}", "    - Success!".green());
@@ -131,17 +169,19 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
             }
         }
 
-        // Detach HEAD so that the branch can be checked out again in the main worktree.
-        git(&["checkout", "--detach"], &worktree_path)?;
+        if branch.worktree.is_none() {
+            // Detach HEAD so that the branch can be checked out again in the main worktree.
+            git(&["checkout", "--detach"], &worktree_path)?;
+        }
 
         if stopped_by_conflicts {
             eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
 
             // Get the commit again because it will have changed (probably).
-            let new_branch_commit = git(&["rev-parse", branch], repo_path)?.stdout;
+            let new_branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
             let new_branch_commit = std::str::from_utf8(new_branch_commit.trim_ascii_whitespace())?;
 
-            conflicts.branches.insert(branch.clone(), new_branch_commit.to_owned());
+            conflicts.branches.insert(branch.branch.clone(), new_branch_commit.to_owned());
             conflicts.write_to_file(&conflicts_path)?;
         }
     }
@@ -163,10 +203,18 @@ fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()>
 }
 
 #[derive(Debug)]
+struct WorktreeInfo {
+    // Path to the worktree.
+    path: PathBuf,
+    // Are both the index (staging area) and worktree clean? There may be untracked files.
+    clean: bool,
+}
+
+#[derive(Debug)]
 struct BranchInfo {
     branch: String,
     upstream: Option<String>,
-    worktree_path: Option<String>,
+    worktree: Option<WorktreeInfo>,
 }
 
 fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
@@ -184,10 +232,31 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
             if parts.len() != 3 {
                 bail!("for-each-ref parse error, got {} parts, expected 3", parts.len());
             }
+
+            let branch = str::from_utf8(parts[0])?.to_owned();
+
+            let upstream = if parts[1].is_empty() {
+                None
+            } else {
+                Some(str::from_utf8(parts[1])?.to_owned())
+            };
+
+            let worktree = if parts[2].is_empty() {
+                None
+            } else {
+                let path = str::from_utf8(parts[2])?;
+                let path = PathBuf::from(path);
+                let clean = is_clean(&path);
+                Some(WorktreeInfo {
+                    path,
+                    clean,
+                })
+            };
+
             Ok(BranchInfo {
-                branch: str::from_utf8(parts[0])?.to_owned(),
-                upstream: if parts[1].is_empty() { None } else { Some(str::from_utf8(parts[1])?.to_owned()) },
-                worktree_path: if parts[2].is_empty() { None } else { Some(str::from_utf8(parts[2])?.to_owned()) },
+                branch,
+                upstream,
+                worktree,
             })
         }
     ).collect::<Result<_, _>>()?;
@@ -218,6 +287,17 @@ fn is_rebasing(repo_path: &Path, worktree: Option<&str>) -> bool {
     let rebase_merge = worktree_git_dir.join("rebase-merge");
 
     rebase_apply.exists() || rebase_merge.exists()
+}
+
+fn is_clean(worktree_path: &Path) -> bool {
+    // Run `git diff-index --quiet HEAD` and `git diff-index --quiet --cached HEAD`
+    // to check if there are any changes in the working tree or index (staging area).
+
+    // Since this uses the exit code (0 = no differences) we kind of have to ignore
+    // other errors since there's no way to detect them.
+
+    git(&["diff-index", "--quiet", "HEAD"], worktree_path).is_ok() &&
+    git(&["diff-index", "--quiet", "--cached", "HEAD"], worktree_path).is_ok()
 }
 
 enum RebaseResult {

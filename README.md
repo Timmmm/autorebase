@@ -32,9 +32,9 @@ Download a binary release from [the Github releases page](https://github.com/Tim
 
 Simply run `autorebase` in your repo. This will perform the following actions
 
-1. Update `master`, by pulling it with `--ff-only` unless you have it checked out.
+1. Update `master`, by pulling it with `--ff-only` unless you have it checked out with pending changes.
 2. Create a temporary work tree inside `.git/autorebase` (this is currently never deleted but you can do it manually with `git worktree remove autorebase_worktree`).
-3. Get the list of branches that have no upstream, and aren't checked out.
+3. Get the list of branches that have no upstream, and aren't checked out with pending changes.
 4. For each branch:
   1. Try to rebase it onto `master`.
   2. If that fails due to conflicts, abort and try again for the previous commit.
@@ -52,7 +52,3 @@ Full usage is:
 * It probably won't be able to rebase branches that aren't trees, i.e. branches that contain merge commits. I haven't tested this.
 * It does everything by running `git` on the command line rather than through a library like `libgit2`, which probably isn't super robust.
 * There's no way to manually specify which branches to rebase. I may add something like `autorebase track my_branch` at some point. Maybe.
-* It can't rebase checked out branches. This is a limitation of `git worktree`.
-* It can't pull `master` if it is checked out.
-
-It's possible to solve do the latter two limitations simply by doing the rebase/pull in the worktree where they are checked out (probably only the tree is clean) but I haven't done it yet. I'll see how annoying it is.
