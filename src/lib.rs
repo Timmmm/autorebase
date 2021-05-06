@@ -77,10 +77,8 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
                     );
                 } else {
                     eprintln!(
-                        "{} {} {}",
-                        "• Not pulling target branch",
+                        "• Not pulling target branch {} because it is checked out and has pending changes",
                         onto_branch.bold(),
-                        "because it is checked out and has pending changes",
                     );
                 }
             } else {
@@ -206,7 +204,7 @@ pub fn get_repo_path() -> Result<PathBuf> {
 }
 
 fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
-    let worktree_path = worktree_path.to_str().ok_or(anyhow!("worktree path is not unicode"))?;
+    let worktree_path = worktree_path.to_str().ok_or_else(|| anyhow!("worktree path is not unicode"))?;
     git(&["worktree", "add", "--detach", worktree_path], repo_path)?;
     Ok(())
 }
@@ -233,7 +231,7 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
     // Store config in `.git/autorebase/autorebase.toml` or `autorebase.toml`?
 
     let output = git(&["for-each-ref", "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)", "refs/heads"], repo_path)?.stdout;
-    let branches = output.split(|c| *c == '\n' as u8).filter(
+    let branches = output.split(|c| *c == b'\n').filter(
         |line| !line.is_empty()
     ).map(
         |line| {
