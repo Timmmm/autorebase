@@ -70,7 +70,7 @@ fn basic_autorebase() {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master").expect("error autorebasing");
+    autorebase(repo_dir, "master", true).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

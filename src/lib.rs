@@ -8,7 +8,7 @@ use conflicts::*;
 mod trim;
 use trim::*;
 
-pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
+pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: bool) -> Result<()> {
     let conflicts_path = repo_path.join(".git/autorebase/conflicts.toml");
 
     let mut conflicts = if conflicts_path.is_file() {
@@ -26,9 +26,6 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
     }
 
     // For each branch, find the common ancestor with `master`. There must only be one.
-
-    // TODO: Figure out the entire tree structure.
-    // Hmm for now I'll just do it the dumb way.
 
     eprint!("{}", "• Getting branches...".yellow());
     let all_branches = get_branches(&repo_path)?;
@@ -148,6 +145,8 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
             &worktree_path
         };
 
+        // The main rebase loop.
+
         let mut stopped_by_conflicts = false;
 
         for target_commit in target_commit_list {
@@ -162,7 +161,11 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str) -> Result<()> {
                 RebaseResult::Conflict => {
                     eprintln!("{}", "    - Conflicts...".yellow());
                     stopped_by_conflicts = true;
-                    continue;
+                    if slow_conflict_detection {
+                        continue;
+                    } else {
+                        todo!("Do a reverse rebase the target branch onto the current branch, and find the commit where it fails");
+                    }
                 }
             }
         }
