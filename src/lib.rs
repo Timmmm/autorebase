@@ -336,7 +336,7 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
 fn get_target_commit_list(repo_path: &Path, branch: &str, onto: &str) -> Result<Vec<String>> {
     let merge_base = get_merge_base(repo_path, branch, onto)?;
 
-    let output = git(&["log", "--format=%H", &format!("{}..{}", merge_base, onto)], repo_path)?.stdout;
+    let output = git(&["--no-pager", "log", "--format=%H", &format!("{}..{}", merge_base, onto)], repo_path)?.stdout;
     let output = String::from_utf8(output)?;
     Ok(output.lines().map(ToOwned::to_owned).collect())
 }
