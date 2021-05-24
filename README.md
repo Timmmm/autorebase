@@ -1,4 +1,4 @@
-![](https://github.com/timmmm/autorebase/actions/workflows/build.yml/badge.svg)
+[![Build Status](https://github.com/timmmm/autorebase/actions/workflows/build.yml/badge.svg)](https://github.com/Timmmm/autorebase/actions/workflows/build.yml)
 
 # Autorebase
 
