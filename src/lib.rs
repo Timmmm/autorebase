@@ -2,13 +2,27 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Result};
 use git_commands::*;
 use colored::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 mod conflicts;
 use conflicts::*;
 mod trim;
 use trim::*;
 
+fn set_committer_date_to_now() {
+    let time_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+
+    std::env::set_var("GIT_COMMITTER_DATE", format!("@{} +0000", time_since_epoch.as_secs()));
+}
+
 pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: bool) -> Result<()> {
+
+    // The first thing we do is set the commiter date to now. If we don't do this
+    // then when we have two branch labels on the same commit, when they get
+    // rebased they will be given different commiter dates which will mean they
+    // get different hashes and end up as separate commits.
+    set_committer_date_to_now();
+
     let conflicts_path = repo_path.join(".git/autorebase/conflicts.toml");
 
     let mut conflicts = if conflicts_path.is_file() {
