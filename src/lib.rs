@@ -1,18 +1,28 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    env,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use anyhow::{anyhow, bail, Result};
 use git_commands::*;
 use colored::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 mod conflicts;
 use conflicts::*;
 mod trim;
 use trim::*;
 
+// Set GIT_COMMITTER_DATE to now to prevent getting inconsistent hashes when
+// rebasing the same commit multiple times.
 fn set_committer_date_to_now() {
-    let time_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    // Only set it if it isn't already set, otherwise it breaks test and also
+    // the user might want to set it.
+    if env::var_os("GIT_COMMITTER_DATE").is_some() {
+        return;
+    }
 
-    std::env::set_var("GIT_COMMITTER_DATE", format!("@{} +0000", time_since_epoch.as_secs()));
+    let time_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    env::set_var("GIT_COMMITTER_DATE", format!("@{} +0000", time_since_epoch.as_secs()));
 }
 
 pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: bool) -> Result<()> {
