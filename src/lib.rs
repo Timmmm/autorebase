@@ -147,7 +147,7 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
         // If the rebase for this branch got stopped by a conflict before and
         // it's still the same commit then skip it.
         if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(branch_commit) {
-            eprintln!("{}", "• Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
+            eprintln!("{}", "    - Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
             continue;
         }
 
