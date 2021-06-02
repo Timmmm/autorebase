@@ -139,85 +139,79 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
     }
 
     for branch in rebase_branches.iter() {
-        eprintln!("• Rebasing {}...", branch.branch.bold());
+        rebase_branch(branch, repo_path, &mut conflicts, &conflicts_path, onto_branch, &worktree_path, slow_conflict_detection)?;
+    }
 
-        let branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
-        let branch_commit = std::str::from_utf8(branch_commit.trim_ascii_whitespace())?;
+    Ok(())
+}
 
-        // If the rebase for this branch got stopped by a conflict before and
-        // it's still the same commit then skip it.
-        if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(branch_commit) {
-            eprintln!("{}", "    - Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
-            continue;
-        }
+fn rebase_branch(
+    branch: &BranchInfo,
+    repo_path: &Path,
+    conflicts: &mut Conflicts,
+    conflicts_path: &Path,
+    onto_branch: &str,
+    worktree_path: &Path,
+    slow_conflict_detection: bool,
+) -> Result<(), anyhow::Error> {
+    eprintln!("• Rebasing {}...", branch.branch.bold());
 
-        conflicts.branches.remove(&branch.branch);
-        conflicts.write_to_file(&conflicts_path)?;
+    let branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
+    let branch_commit = std::str::from_utf8(branch_commit.trim_ascii_whitespace())?;
 
-        // Get the list of commits we will try to rebase onto (starting with `onto_branch`).
-        let target_commit_list = get_target_commit_list(&repo_path, &branch.branch, onto_branch)?;
+    if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(branch_commit) {
+        eprintln!("{}", "    - Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
+        return Ok(());
+    }
 
-        // Check out the branch, unless it is already checked out.
-        if branch.worktree.is_none() {
-            checkout_branch(&branch.branch, &worktree_path)?;
-        }
+    conflicts.branches.remove(&branch.branch);
+    conflicts.write_to_file(&conflicts_path)?;
 
-        // Path where we'll do the rebase.
-        let rebase_worktree_path = if let Some(worktree) = &branch.worktree {
-            &worktree.path
-        } else {
-            &worktree_path
-        };
+    let target_commit_list = get_target_commit_list(&repo_path, &branch.branch, onto_branch)?;
 
-        // The main rebase loop.
+    if branch.worktree.is_none() {
+        checkout_branch(&branch.branch, &worktree_path)?;
+    }
 
-        let mut stopped_by_conflicts = false;
+    let rebase_worktree_path = if let Some(worktree) = &branch.worktree {
+        &worktree.path
+    } else {
+        worktree_path
+    };
 
-        for target_commit in target_commit_list {
-            eprintln!("    - Rebasing onto {}", target_commit.bold());
+    let mut stopped_by_conflicts = false;
+    for target_commit in target_commit_list {
+        eprintln!("    - Rebasing onto {}", target_commit.bold());
 
-            let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit)?;
-            match result {
-                RebaseResult::Success => {
-                    eprintln!("{}", "    - Success!".green());
-                    break;
-                }
-                RebaseResult::Conflict => {
-                    eprintln!("{}", "    - Conflicts...".yellow());
-                    stopped_by_conflicts = true;
-                    if slow_conflict_detection {
-                        continue;
-                    } else {
-                        todo!("Do a reverse rebase the target branch onto the current branch, and find the commit where it fails");
-                    }
+        let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit)?;
+        match result {
+            RebaseResult::Success => {
+                eprintln!("{}", "    - Success!".green());
+                break;
+            }
+            RebaseResult::Conflict => {
+                eprintln!("{}", "    - Conflicts...".yellow());
+                stopped_by_conflicts = true;
+                if slow_conflict_detection {
+                    continue;
+                } else {
+                    todo!("Do a reverse rebase the target branch onto the current branch, and find the commit where it fails");
                 }
             }
         }
+    }
 
-        // Detach HEAD in the scratch worktree and ensure it is on a commit that
-        // we want to keep. This ensures that
-        //
-        //   a) If we did the rebase in the scratch worktree then the branch can
-        //      be checked out elsewhere, and
-        //   b) If we did the rebase in the user's worktree then the scratch
-        //      worktree doesn't keep a reference to the commit around weirdly
-        //      (it shows up in `git log` with no refs).
-        //
-        // This doesn't run afoul of git's rule about checking out the branch
-        // in more than one worktree because of `--detach`.
-        // to the old pre-rebase commit.
-        git(&["checkout", "--detach", &branch.branch], &worktree_path)?;
+    git(&["checkout", "--detach", &branch.branch], &worktree_path)?;
 
-        if stopped_by_conflicts {
-            eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
+    if stopped_by_conflicts {
+        eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
 
-            // Get the commit again because it will have changed (probably).
-            let new_branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
-            let new_branch_commit = std::str::from_utf8(new_branch_commit.trim_ascii_whitespace())?;
+        // Get the commit again because it will have changed (probably).
+        let new_branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
+        let new_branch_commit = std::str::from_utf8(new_branch_commit.trim_ascii_whitespace())?;
 
-            conflicts.branches.insert(branch.branch.clone(), new_branch_commit.to_owned());
-            conflicts.write_to_file(&conflicts_path)?;
-        }
+        conflicts.branches.insert(branch.branch.clone(), new_branch_commit.to_owned());
+        conflicts.write_to_file(&conflicts_path)?;
     }
 
     Ok(())
