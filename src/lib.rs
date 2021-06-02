@@ -75,6 +75,16 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
     }).collect();
 
     // Pull master.
+    pull_master(onto_branch_info, onto_branch, &worktree_path)?;
+
+    for branch in rebase_branches.iter() {
+        rebase_branch(branch, repo_path, &mut conflicts, &conflicts_path, onto_branch, &worktree_path, slow_conflict_detection)?;
+    }
+
+    Ok(())
+}
+
+fn pull_master(onto_branch_info: Option<&BranchInfo>, onto_branch: &str, worktree_path: &PathBuf) -> Result<(), anyhow::Error> {
     if let Some(onto_branch_info) = onto_branch_info {
         if onto_branch_info.upstream.is_some() {
             if let Some(onto_branch_worktree_info) = &onto_branch_info.worktree {
@@ -110,9 +120,9 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
                     "...".yellow(),
                 );
 
-                git(&["checkout", onto_branch], &worktree_path)?;
-                git(&["pull", "--ff-only"], &worktree_path)?;
-                git(&["checkout", "--detach"], &worktree_path)?;
+                git(&["checkout", onto_branch], worktree_path)?;
+                git(&["pull", "--ff-only"], worktree_path)?;
+                git(&["checkout", "--detach"], worktree_path)?;
 
                 eprintln!(
                     "\r{} {}{}",
@@ -137,11 +147,6 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
             "because it was not found".yellow(),
         );
     }
-
-    for branch in rebase_branches.iter() {
-        rebase_branch(branch, repo_path, &mut conflicts, &conflicts_path, onto_branch, &worktree_path, slow_conflict_detection)?;
-    }
-
     Ok(())
 }
 
