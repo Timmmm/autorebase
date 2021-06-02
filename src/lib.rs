@@ -78,7 +78,15 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
     pull_master(onto_branch_info, onto_branch, &worktree_path)?;
 
     for branch in rebase_branches.iter() {
-        rebase_branch(branch, repo_path, &mut conflicts, &conflicts_path, onto_branch, &worktree_path, slow_conflict_detection)?;
+        rebase_branch(
+            branch,
+            repo_path,
+            &mut conflicts,
+            &conflicts_path,
+            onto_branch,
+            &worktree_path,
+            slow_conflict_detection,
+        )?;
     }
 
     Ok(())
@@ -172,7 +180,14 @@ fn rebase_branch(
     conflicts.branches.remove(&branch.branch);
     conflicts.write_to_file(&conflicts_path)?;
 
-    let target_commit_list = get_target_commit_list(&repo_path, &branch.branch, onto_branch)?;
+    let merge_base = get_merge_base(repo_path, &branch.branch, onto_branch)?;
+
+    let target_commit_list = get_commit_list(repo_path, &merge_base, onto_branch)?;
+
+    if target_commit_list.is_empty() {
+        eprintln!("    - No rebase necessary");
+        return Ok(());
+    }
 
     if branch.worktree.is_none() {
         checkout_branch(&branch.branch, &worktree_path)?;
@@ -185,26 +200,57 @@ fn rebase_branch(
     };
 
     let mut stopped_by_conflicts = false;
-    for target_commit in target_commit_list {
-        eprintln!("    - Rebasing onto {}", target_commit.bold());
 
-        let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit)?;
+    if slow_conflict_detection {
+        for target_commit in target_commit_list {
+            eprintln!("    - Rebasing onto {}", target_commit.bold());
+
+            let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit)?;
+            match result {
+                RebaseResult::Success => {
+                    eprintln!("{}", "    - Success!".green());
+                    break;
+                }
+                RebaseResult::Conflict => {
+                    eprintln!("{}", "    - Conflicts...".yellow());
+                    stopped_by_conflicts = true;
+                    continue;
+                }
+            }
+        }
+    } else {
+        let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit_list[0])?;
         match result {
             RebaseResult::Success => {
                 eprintln!("{}", "    - Success!".green());
-                break;
             }
             RebaseResult::Conflict => {
                 eprintln!("{}", "    - Conflicts...".yellow());
                 stopped_by_conflicts = true;
-                if slow_conflict_detection {
-                    continue;
-                } else {
-                    todo!("Do a reverse rebase the target branch onto the current branch, and find the commit where it fails");
+
+                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(repo_path, rebase_worktree_path, &branch.branch, onto_branch, &merge_base)?;
+
+                if num_nonconflicting_commits > 0 && num_nonconflicting_commits < target_commit_list.len() {
+                    let last_nonconflicting_commit = &target_commit_list[target_commit_list.len() - num_nonconflicting_commits];
+
+                    // Make a temporary branch, then try to rebase master onto it.
+                    // Then see which commit failed. Finally try to rebase
+                    // the branch onto master at the last commit that succeeded.
+
+                    let result = attempt_rebase(&repo_path, rebase_worktree_path, &last_nonconflicting_commit)?;
+                    match result {
+                        RebaseResult::Success => {
+                            eprintln!("{}", "    - Success!".green());
+                        }
+                        RebaseResult::Conflict => {
+                            eprintln!("{}", "    - Conflicts...".yellow());
+                        }
+                    }
                 }
             }
         }
     }
+
 
     git(&["checkout", "--detach", &branch.branch], &worktree_path)?;
 
@@ -356,10 +402,41 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
     Ok(RebaseResult::Conflict)
 }
 
-fn get_target_commit_list(repo_path: &Path, branch: &str, onto: &str) -> Result<Vec<String>> {
-    let merge_base = get_merge_base(repo_path, branch, onto)?;
+fn count_nonconflicting_commits_via_rebase(
+    repo_path: &Path,
+    worktree_path: &Path,
+    branch: &str,
+    onto: &str,
+    merge_base: &str,
+) -> Result<usize> {
 
-    let output = git(&["--no-pager", "log", "--format=%H", &format!("{}..{}", merge_base, onto)], repo_path)?.stdout;
+    // Checkout master.
+    git(&["checkout", onto], worktree_path)?;
+
+    // Rebase onto branch.
+    let rebase_ok = git(&["rebase", branch], worktree_path);
+    if rebase_ok.is_ok() {
+        // Rebase worked one way but not in the other. Bit weird. This probably
+        // shouldn't happen normally but we'll just give up.
+        return Ok(0);
+    }
+
+    if !is_rebasing(repo_path, Some("autorebase_worktree")) {
+        // Error - it should be rebasing!
+        bail!("Rebase succeeded but repo is still rebasing.");
+    }
+
+    // Count how many commits we successfully applied.
+    let commit_list = get_commit_list(repo_path, merge_base, "HEAD")?;
+
+    // Abort the rebase.
+    git(&["rebase", "--abort"], worktree_path)?;
+
+    Ok(commit_list.len())
+}
+
+fn get_commit_list(repo_path: &Path, from: &str, to: &str) -> Result<Vec<String>> {
+    let output = git(&["--no-pager", "log", "--format=%H", &format!("{}..{}", from, to)], repo_path)?.stdout;
     let output = String::from_utf8(output)?;
     Ok(output.lines().map(ToOwned::to_owned).collect())
 }
