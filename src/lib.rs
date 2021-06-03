@@ -1,4 +1,4 @@
-use std::{env, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{env, path::{Path, PathBuf}, process::Command, time::{SystemTime, UNIX_EPOCH}};
 use anyhow::{anyhow, bail, Result};
 use git_commands::*;
 use colored::*;
@@ -169,10 +169,9 @@ fn rebase_branch(
 ) -> Result<(), anyhow::Error> {
     eprintln!("• Rebasing {}...", branch.branch.bold());
 
-    let branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
-    let branch_commit = std::str::from_utf8(branch_commit.trim_ascii_whitespace())?;
+    let branch_commit = get_commit_hash(repo_path, &branch.branch)?;
 
-    if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(branch_commit) {
+    if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(&branch_commit) {
         eprintln!("{}", "    - Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
         return Ok(());
     }
@@ -231,9 +230,13 @@ fn rebase_branch(
 
                 eprintln!("    - Finding first conflict...");
 
-                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(repo_path, rebase_worktree_path, &branch.branch, onto_branch, &merge_base)?;
+                // Save the current checkout state.
+                let old_location = get_current_branch_or_commit(rebase_worktree_path)?;
 
-                todo!("We need to check out the commit AND BRANCH where we started");
+                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(rebase_worktree_path, &branch.branch, onto_branch, &merge_base)?;
+
+                // Restore the previous state.
+                switch_to_branch_or_commit(rebase_worktree_path, &old_location)?;
 
                 if num_nonconflicting_commits > 0 && num_nonconflicting_commits < target_commit_list.len() {
                     let last_nonconflicting_commit = &target_commit_list[target_commit_list.len() - num_nonconflicting_commits];
@@ -264,10 +267,9 @@ fn rebase_branch(
         eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
 
         // Get the commit again because it will have changed (probably).
-        let new_branch_commit = git(&["rev-parse", &branch.branch], repo_path)?.stdout;
-        let new_branch_commit = std::str::from_utf8(new_branch_commit.trim_ascii_whitespace())?;
+        let new_branch_commit = get_commit_hash(repo_path, &branch.branch)?;
 
-        conflicts.branches.insert(branch.branch.clone(), new_branch_commit.to_owned());
+        conflicts.branches.insert(branch.branch.clone(), new_branch_commit);
         conflicts.write_to_file(&conflicts_path)?;
     }
 
@@ -411,8 +413,9 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
 /// Create a temporary branch at master (`onto`), then try to rebase it ont
 /// `branch`. Count how many commits were rebased successfully, and
 /// return that number. Then abort the rebase, and delete the branch.
+///
+/// Note that this will change the checked out branch.
 fn count_nonconflicting_commits_via_rebase(
-    repo_path: &Path,
     worktree_path: &Path,
     branch: &str,
     onto: &str,
@@ -431,13 +434,13 @@ fn count_nonconflicting_commits_via_rebase(
         return Ok(0);
     }
 
-    if !is_rebasing(repo_path, Some("autorebase_worktree")) {
+    if !is_rebasing(worktree_path, Some("autorebase_worktree")) {
         // Error - it should be rebasing!
         bail!("Rebase succeeded but repo is still rebasing.");
     }
 
     // Count how many commits we successfully applied.
-    let commit_list = get_commit_list(repo_path, merge_base, "HEAD")?;
+    let commit_list = get_commit_list(worktree_path, merge_base, "HEAD")?;
 
     // Abort the rebase.
     git(&["rebase", "--abort"], worktree_path)?;
@@ -471,4 +474,61 @@ fn git_version(repo_path: &Path) -> Result<Vec<u32>> {
     } else {
         bail!("Invalid `git version` output");
     }
+}
+
+enum BranchOrCommit {
+    Branch(String),
+    Commit(String),
+}
+
+/// Get the current branch, if we are on one.
+///
+/// `git symbolic-ref --quiet --short HEAD` returns the branch name, or returns
+/// an error if we are not on a branch. Note it will still return the branch
+/// name if we are on an unborn branch.
+///
+fn get_current_branch(worktree_path: &Path) -> Result<Option<String>> {
+    let output = Command::new("git")
+        .current_dir(worktree_path)
+        .args(&["symbolic-ref", "--quiet", "--short", "HEAD"])
+        .output()?;
+
+    if output.status.success() {
+        let branch = std::str::from_utf8(output.stdout.trim_ascii_whitespace())?;
+        Ok(Some(branch.to_owned()))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Use `git rev-parse HEAD` to return the current commit hash. It will
+/// return an error if we are on an unborn branch. That's an error for us though
+/// so we don't have to treat that case specially.
+fn get_commit_hash(worktree_path: &Path, branch: &str) -> Result<String> {
+    let commit = git(&["rev-parse", &branch], worktree_path)?.stdout;
+    let commit = std::str::from_utf8(commit.trim_ascii_whitespace())?;
+    Ok(commit.to_owned())
+}
+
+fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> {
+
+    if let Some(branch) = get_current_branch(worktree_path)? {
+        return Ok(BranchOrCommit::Branch(branch));
+    }
+
+
+    let commit = get_commit_hash(worktree_path, "HEAD")?;
+    Ok(BranchOrCommit::Commit(commit))
+}
+
+fn switch_to_branch_or_commit(worktree_path: &Path, branch_or_commit: &BranchOrCommit) -> Result<()> {
+    match branch_or_commit {
+        &BranchOrCommit::Branch(ref branch) => {
+            git(&["switch", &branch], worktree_path)?;
+        }
+        &BranchOrCommit::Commit(ref commit) => {
+            git(&["switch", "--detach", &commit], worktree_path)?;
+        }
+    }
+    Ok(())
 }
