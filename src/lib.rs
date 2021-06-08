@@ -101,7 +101,7 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
 }
 
 /// Pull the master branch (the `onto` branch), if it has an upstream.
-fn pull_master(onto_branch_info: &BranchInfo, worktree_path: &PathBuf) -> Result<(), anyhow::Error> {
+fn pull_master(onto_branch_info: &BranchInfo, worktree_path: &Path) -> Result<(), anyhow::Error> {
     if onto_branch_info.upstream.is_some() {
         if let Some(onto_branch_worktree_info) = &onto_branch_info.worktree {
             // It's checked out somewhere. Check if that worktree is clean,
@@ -525,10 +525,10 @@ fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> 
 
 fn switch_to_branch_or_commit(worktree_path: &Path, branch_or_commit: &BranchOrCommit) -> Result<()> {
     match branch_or_commit {
-        &BranchOrCommit::Branch(ref branch) => {
+        BranchOrCommit::Branch(ref branch) => {
             git(&["switch", &branch], worktree_path)?;
         }
-        &BranchOrCommit::Commit(ref commit) => {
+        BranchOrCommit::Commit(ref commit) => {
             git(&["switch", "--detach", &commit], worktree_path)?;
         }
     }
