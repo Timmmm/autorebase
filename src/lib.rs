@@ -1,5 +1,5 @@
 use std::{env, path::{Path, PathBuf}, process::Command, time::{SystemTime, UNIX_EPOCH}};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Result, Context};
 use git_commands::*;
 use colored::*;
 
@@ -470,7 +470,7 @@ fn git_version(repo_path: &Path) -> Result<Vec<u32>> {
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
 
     if let Some(version_string) = output.strip_prefix("git version ") {
-        Ok(version_string.split('.').map(|s| s.parse()).collect::<Result<_, _>>()?)
+        Ok(version_string.split('.').map(|s| s.parse()).collect::<Result<_, _>>().context("parsing git version")?)
     } else {
         bail!("Invalid `git version` output");
     }
