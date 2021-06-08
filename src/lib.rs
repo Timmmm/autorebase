@@ -1,5 +1,5 @@
 use std::{env, path::{Path, PathBuf}, process::Command, time::{SystemTime, UNIX_EPOCH}};
-use anyhow::{anyhow, bail, Result, Context};
+use anyhow::{anyhow, bail, Result};
 use git_commands::*;
 use colored::*;
 
@@ -30,7 +30,7 @@ fn set_committer_date_to_now() {
 pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: bool) -> Result<()> {
     // Check the git version. `git switch` was introduced in 2.23.
     if git_version(repo_path)?.as_slice() < &[2, 23] {
-        bail!("Git is too old - version 2.23 or later is required");
+        bail!("Your Git installation is too old - version 2.23 or later is required");
     }
 
     // The first thing we do is set the commiter date to now. If we don't do this
@@ -462,15 +462,17 @@ fn get_commit_list(repo_path: &Path, from: &str, to: &str) -> Result<Vec<String>
     Ok(output.lines().map(ToOwned::to_owned).collect())
 }
 
-/// Return the Git version like [2, 3, 30].
-fn git_version(repo_path: &Path) -> Result<Vec<u32>> {
+/// Return the Git version like [2, 3, 30]. Really annoyingly the version sometimes
+/// includes text, for example 2.31.1.windows.1 (yes really). We will just convert
+/// unparsable values to -1. Ugly but they started it.
+fn git_version(repo_path: &Path) -> Result<Vec<i32>> {
     // The output of `git version` is guaranteed to be stable, though it has a stupid
     // "git version " string at the start.
     let output = git(&["version"], repo_path)?.stdout;
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
 
     if let Some(version_string) = output.strip_prefix("git version ") {
-        Ok(version_string.split('.').map(|s| s.parse()).collect::<Result<_, _>>().context("parsing git version")?)
+        Ok(version_string.split('.').map(|s| s.parse().unwrap_or(-1)).collect())
     } else {
         bail!("Invalid `git version` output");
     }
