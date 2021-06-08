@@ -1,7 +1,12 @@
-use std::{env, path::{Path, PathBuf}, process::Command, time::{SystemTime, UNIX_EPOCH}};
 use anyhow::{anyhow, bail, Result};
-use git_commands::*;
 use colored::*;
+use git_commands::*;
+use std::{
+    env,
+    path::{Path, PathBuf},
+    process::Command,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 mod conflicts;
 use conflicts::*;
@@ -17,8 +22,13 @@ fn set_committer_date_to_now() {
         return;
     }
 
-    let time_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-    env::set_var("GIT_COMMITTER_DATE", format!("@{} +0000", time_since_epoch.as_secs()));
+    let time_since_epoch = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    env::set_var(
+        "GIT_COMMITTER_DATE",
+        format!("@{} +0000", time_since_epoch.as_secs()),
+    );
 }
 
 /// Autorebase all branches in `repo_path` onto the `onto_branch` (typically "master").
@@ -27,7 +37,11 @@ fn set_committer_date_to_now() {
 /// detect the first commit that causes a conflict and rebase to just before that.
 /// Way faster, but may not always work.
 ///
-pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: bool) -> Result<()> {
+pub fn autorebase(
+    repo_path: &Path,
+    onto_branch: &str,
+    slow_conflict_detection: bool,
+) -> Result<()> {
     // Check the git version. `git switch` was introduced in 2.23.
     if git_version(repo_path)?.as_slice() < &[2, 23] {
         bail!("Your Git installation is too old - version 2.23 or later is required");
@@ -59,7 +73,8 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
 
     eprint!("{}", "• Getting branches...".yellow());
     let all_branches = get_branches(&repo_path)?;
-    let onto_branch_info = all_branches.iter()
+    let onto_branch_info = all_branches
+        .iter()
         .find(|b| b.branch == onto_branch)
         .ok_or_else(|| anyhow!("Couldn't find target branch '{}'", onto_branch))?;
     eprintln!("\r{}", "• Getting branches...".green());
@@ -69,18 +84,29 @@ pub fn autorebase(repo_path: &Path, onto_branch: &str, slow_conflict_detection: 
         if branch.branch == onto_branch {
             eprintln!("    - {} (target branch)", branch.branch.blue().bold());
         } else if branch.upstream.is_some() {
-            eprintln!("    - {} (skipping because it has an upstream)", branch.branch.bold());
+            eprintln!(
+                "    - {} (skipping because it has an upstream)",
+                branch.branch.bold()
+            );
         } else if matches!(&branch.worktree, Some(worktree) if !worktree.clean) {
-            eprintln!("    - {} (skipping because it is checked out and not clean)", branch.branch.bold());
+            eprintln!(
+                "    - {} (skipping because it is checked out and not clean)",
+                branch.branch.bold()
+            );
         } else {
             eprintln!("    - {}", branch.branch.green().bold());
         }
     }
 
     // Get the branches that we will actually attempt to rebase.
-    let rebase_branches: Vec<&BranchInfo> = all_branches.iter().filter(|branch| {
-        branch.branch != onto_branch && branch.upstream.is_none() && !matches!(&branch.worktree, Some(worktree) if !worktree.clean)
-    }).collect();
+    let rebase_branches: Vec<&BranchInfo> = all_branches
+        .iter()
+        .filter(|branch| {
+            branch.branch != onto_branch
+                && branch.upstream.is_none()
+                && !matches!(&branch.worktree, Some(worktree) if !worktree.clean)
+        })
+        .collect();
 
     // Pull master.
     pull_master(onto_branch_info, &worktree_path)?;
@@ -172,7 +198,11 @@ fn rebase_branch(
     let branch_commit = get_commit_hash(repo_path, &branch.branch)?;
 
     if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(&branch_commit) {
-        eprintln!("{}", "    - Skipping rebase because it had conflicts last time we tried; rebase manually".yellow());
+        eprintln!(
+            "{}",
+            "    - Skipping rebase because it had conflicts last time we tried; rebase manually"
+                .yellow()
+        );
         return Ok(());
     }
 
@@ -233,19 +263,31 @@ fn rebase_branch(
                 // Save the current checkout state.
                 let old_location = get_current_branch_or_commit(rebase_worktree_path)?;
 
-                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(repo_path, rebase_worktree_path, &branch.branch, onto_branch)?;
+                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(
+                    repo_path,
+                    rebase_worktree_path,
+                    &branch.branch,
+                    onto_branch,
+                )?;
 
                 // Restore the previous state.
                 switch_to_branch_or_commit(rebase_worktree_path, &old_location)?;
 
-                if num_nonconflicting_commits > 0 && num_nonconflicting_commits < target_commit_list.len() {
-                    let last_nonconflicting_commit = &target_commit_list[target_commit_list.len() - num_nonconflicting_commits];
+                if num_nonconflicting_commits > 0
+                    && num_nonconflicting_commits < target_commit_list.len()
+                {
+                    let last_nonconflicting_commit =
+                        &target_commit_list[target_commit_list.len() - num_nonconflicting_commits];
 
                     // Make a temporary branch, then try to rebase master onto it.
                     // Then see which commit failed. Finally try to rebase
                     // the branch onto master at the last commit that succeeded.
 
-                    let result = attempt_rebase(&repo_path, rebase_worktree_path, &last_nonconflicting_commit)?;
+                    let result = attempt_rebase(
+                        &repo_path,
+                        rebase_worktree_path,
+                        &last_nonconflicting_commit,
+                    )?;
                     match result {
                         RebaseResult::Success => {
                             eprintln!("{}", "    - Success!".green());
@@ -264,12 +306,17 @@ fn rebase_branch(
     git(&["switch", "--detach", &branch.branch], &worktree_path)?;
 
     if stopped_by_conflicts {
-        eprintln!("{}", "    - Rebase stunted by conflicts. Rebase manually.".yellow());
+        eprintln!(
+            "{}",
+            "    - Rebase stunted by conflicts. Rebase manually.".yellow()
+        );
 
         // Get the commit again because it will have changed (probably).
         let new_branch_commit = get_commit_hash(repo_path, &branch.branch)?;
 
-        conflicts.branches.insert(branch.branch.clone(), new_branch_commit);
+        conflicts
+            .branches
+            .insert(branch.branch.clone(), new_branch_commit);
         conflicts.write_to_file(&conflicts_path)?;
     }
 
@@ -284,7 +331,9 @@ pub fn get_repo_path() -> Result<PathBuf> {
 }
 
 fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
-    let worktree_path = worktree_path.to_str().ok_or_else(|| anyhow!("worktree path is not unicode"))?;
+    let worktree_path = worktree_path
+        .to_str()
+        .ok_or_else(|| anyhow!("worktree path is not unicode"))?;
     git(&["worktree", "add", "--detach", worktree_path], repo_path)?;
     Ok(())
 }
@@ -310,14 +359,25 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
     // TODO: Config system to allow specifying the branches? Maybe allow adding/removing them?
     // Store config in `.git/autorebase/autorebase.toml` or `autorebase.toml`?
 
-    let output = git(&["for-each-ref", "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)", "refs/heads"], repo_path)?.stdout;
-    let branches = output.split(|c| *c == b'\n').filter(
-        |line| !line.is_empty()
-    ).map(
-        |line| {
+    let output = git(
+        &[
+            "for-each-ref",
+            "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)",
+            "refs/heads",
+        ],
+        repo_path,
+    )?
+    .stdout;
+    let branches = output
+        .split(|c| *c == b'\n')
+        .filter(|line| !line.is_empty())
+        .map(|line| {
             let parts: Vec<&[u8]> = line.split(|c| *c == 0).collect();
             if parts.len() != 3 {
-                bail!("for-each-ref parse error, got {} parts, expected 3", parts.len());
+                bail!(
+                    "for-each-ref parse error, got {} parts, expected 3",
+                    parts.len()
+                );
             }
 
             let branch = str::from_utf8(parts[0])?.to_owned();
@@ -334,10 +394,7 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
                 let path = str::from_utf8(parts[2])?;
                 let path = PathBuf::from(path);
                 let clean = is_clean(&path);
-                Some(WorktreeInfo {
-                    path,
-                    clean,
-                })
+                Some(WorktreeInfo { path, clean })
             };
 
             Ok(BranchInfo {
@@ -345,8 +402,8 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
                 upstream,
                 worktree,
             })
-        }
-    ).collect::<Result<_, _>>()?;
+        })
+        .collect::<Result<_, _>>()?;
     Ok(branches)
 }
 
@@ -383,8 +440,12 @@ fn is_clean(worktree_path: &Path) -> bool {
     // Since this uses the exit code (0 = no differences) we kind of have to ignore
     // other errors since there's no way to detect them.
 
-    git(&["diff-index", "--quiet", "HEAD"], worktree_path).is_ok() &&
-    git(&["diff-index", "--quiet", "--cached", "HEAD"], worktree_path).is_ok()
+    git(&["diff-index", "--quiet", "HEAD"], worktree_path).is_ok()
+        && git(
+            &["diff-index", "--quiet", "--cached", "HEAD"],
+            worktree_path,
+        )
+        .is_ok()
 }
 
 enum RebaseResult {
@@ -395,7 +456,7 @@ enum RebaseResult {
 fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<RebaseResult> {
     let rebase_ok = git(&["rebase", onto], worktree_path);
     if rebase_ok.is_ok() {
-        return Ok(RebaseResult::Success)
+        return Ok(RebaseResult::Success);
     }
 
     // We may need to abort if the rebase is still in progress. Git checks
@@ -421,10 +482,17 @@ fn count_nonconflicting_commits_via_rebase(
     branch: &str,
     onto: &str,
 ) -> Result<usize> {
-
     // Create a temporary branch at master. If it already exists (e.g. because
     // a previous command failed) just reset it to here.
-    git(&["switch", "--force-create", "autorebase_tmp_safe_to_delete", onto], worktree_path)?;
+    git(
+        &[
+            "switch",
+            "--force-create",
+            "autorebase_tmp_safe_to_delete",
+            onto,
+        ],
+        worktree_path,
+    )?;
 
     // Rebase onto branch.
     let rebase_ok = git(&["rebase", branch], worktree_path);
@@ -449,7 +517,15 @@ fn count_nonconflicting_commits_via_rebase(
     // keeping commits around.
     git(&["switch", "--detach", onto], worktree_path)?;
 
-    git(&["branch", "--delete", "--force", "autorebase_tmp_safe_to_delete"], worktree_path)?;
+    git(
+        &[
+            "branch",
+            "--delete",
+            "--force",
+            "autorebase_tmp_safe_to_delete",
+        ],
+        worktree_path,
+    )?;
 
     Ok(commit_list.len())
 }
@@ -457,7 +533,16 @@ fn count_nonconflicting_commits_via_rebase(
 /// Get the list of commits from `from` to `to`. The list includes `to` but not
 /// `from`.
 fn get_commit_list(repo_path: &Path, from: &str, to: &str) -> Result<Vec<String>> {
-    let output = git(&["--no-pager", "log", "--format=%H", &format!("{}..{}", from, to)], repo_path)?.stdout;
+    let output = git(
+        &[
+            "--no-pager",
+            "log",
+            "--format=%H",
+            &format!("{}..{}", from, to),
+        ],
+        repo_path,
+    )?
+    .stdout;
     let output = String::from_utf8(output)?;
     Ok(output.lines().map(ToOwned::to_owned).collect())
 }
@@ -472,7 +557,10 @@ fn git_version(repo_path: &Path) -> Result<Vec<i32>> {
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
 
     if let Some(version_string) = output.strip_prefix("git version ") {
-        Ok(version_string.split('.').map(|s| s.parse().unwrap_or(-1)).collect())
+        Ok(version_string
+            .split('.')
+            .map(|s| s.parse().unwrap_or(-1))
+            .collect())
     } else {
         bail!("Invalid `git version` output");
     }
@@ -513,7 +601,6 @@ fn get_commit_hash(worktree_path: &Path, branch: &str) -> Result<String> {
 }
 
 fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> {
-
     if let Some(branch) = get_current_branch(worktree_path)? {
         return Ok(BranchOrCommit::Branch(branch));
     }
@@ -523,7 +610,10 @@ fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> 
     Ok(BranchOrCommit::Commit(commit))
 }
 
-fn switch_to_branch_or_commit(worktree_path: &Path, branch_or_commit: &BranchOrCommit) -> Result<()> {
+fn switch_to_branch_or_commit(
+    worktree_path: &Path,
+    branch_or_commit: &BranchOrCommit,
+) -> Result<()> {
     match branch_or_commit {
         BranchOrCommit::Branch(ref branch) => {
             git(&["switch", &branch], worktree_path)?;

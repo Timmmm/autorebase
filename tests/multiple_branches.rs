@@ -1,6 +1,6 @@
 mod utils;
-use utils::*;
 use autorebase::autorebase;
+use utils::*;
 
 // Basic test but there is more than one branch that needs to be rebased.
 #[test]
@@ -16,24 +16,11 @@ fn multiple_branches_fast() {
 fn multiple_branches(slow_conflict_detection: bool) {
     git_fixed_dates();
 
-    let root =
-        commit("First")
+    let root = commit("First")
         .write("a.txt", "hello")
-        .child(
-            commit("Second")
-            .write("a.txt", "world")
-            .branch("master")
-        )
-        .child(
-            commit("WIP 1")
-            .write("b.txt", "foo1")
-            .branch("wip1")
-        )
-        .child(
-            commit("WIP 2")
-            .write("b.txt", "foo2")
-            .branch("wip2")
-        );
+        .child(commit("Second").write("a.txt", "world").branch("master"))
+        .child(commit("WIP 1").write("b.txt", "foo1").branch("wip1"))
+        .child(commit("WIP 2").write("b.txt", "foo2").branch("wip2"));
 
     let repo = build_repo(&root, Some("master"));
 

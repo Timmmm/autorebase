@@ -1,6 +1,6 @@
 mod utils;
-use utils::*;
 use autorebase::autorebase;
+use utils::*;
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts.
 #[test]
@@ -16,27 +16,16 @@ fn conflict_fast() {
 fn conflict(slow_conflict_detection: bool) {
     git_fixed_dates();
 
-    let root =
-        commit("First")
+    let root = commit("First")
         .write("a.txt", "hello")
         .child(
-            commit("Second")
-            .write("a.txt", "world")
-            .child(
+            commit("Second").write("a.txt", "world").child(
                 commit("Third")
-                .write("b.txt", "and")
-                .child(
-                    commit("Fourth")
-                    .write("b.txt", "others")
-                    .branch("master")
-                )
-            )
+                    .write("b.txt", "and")
+                    .child(commit("Fourth").write("b.txt", "others").branch("master")),
+            ),
         )
-        .child(
-            commit("WIP")
-            .write("b.txt", "goodbye")
-            .branch("wip")
-        );
+        .child(commit("WIP").write("b.txt", "goodbye").branch("wip"));
 
     // It should rebase `wip` to the `Second` commit and then mark it as blocked.
 

@@ -2,9 +2,7 @@ use tempfile::TempDir;
 
 /// Generate a completely random repo with random commits, branches, etc.
 /// If `allow_merges` is true then the repo may contain merge commits.
-fn random_repo(
-    allow_merges: bool
-) -> TempDir {
+fn random_repo(allow_merges: bool) -> TempDir {
     if allow_merges {
         todo!();
     }

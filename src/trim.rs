@@ -7,7 +7,7 @@ pub trait TrimAsciiWhitespace {
     fn trim_ascii_whitespace(&self) -> &[u8];
 }
 
-impl<T: Deref<Target=[u8]>> TrimAsciiWhitespace for T {
+impl<T: Deref<Target = [u8]>> TrimAsciiWhitespace for T {
     fn trim_ascii_whitespace(&self) -> &[u8] {
         let from = match self.iter().position(|x| !x.is_ascii_whitespace()) {
             Some(i) => i,

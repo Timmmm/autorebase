@@ -1,8 +1,7 @@
-
 mod utils;
-use utils::*;
 use autorebase::autorebase;
 use std::fs;
+use utils::*;
 
 // Check we can rebase with the current checked out branch.
 #[test]
@@ -18,19 +17,10 @@ fn checkedout_clean_fast() {
 fn checkedout_clean(slow_conflict_detection: bool) {
     git_fixed_dates();
 
-    let root =
-        commit("First")
+    let root = commit("First")
         .write("a.txt", "hello")
-        .child(
-            commit("Second")
-            .write("a.txt", "world")
-            .branch("master")
-        )
-        .child(
-            commit("WIP")
-            .write("b.txt", "foo")
-            .branch("wip")
-        );
+        .child(commit("Second").write("a.txt", "world").branch("master"))
+        .child(commit("WIP").write("b.txt", "foo").branch("wip"));
 
     let repo = build_repo(&root, Some("wip"));
 
@@ -85,19 +75,10 @@ fn checkedout_dirty_fast() {
 fn checkedout_dirty(slow_conflict_detection: bool) {
     git_fixed_dates();
 
-    let root =
-        commit("First")
+    let root = commit("First")
         .write("a.txt", "hello")
-        .child(
-            commit("Second")
-            .write("a.txt", "world")
-            .branch("master")
-        )
-        .child(
-            commit("WIP")
-            .write("b.txt", "foo")
-            .branch("wip")
-        );
+        .child(commit("Second").write("a.txt", "world").branch("master"))
+        .child(commit("WIP").write("b.txt", "foo").branch("wip"));
 
     let repo = build_repo(&root, Some("wip"));
 

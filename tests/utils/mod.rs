@@ -1,9 +1,9 @@
-use tempfile::{TempDir, tempdir};
-use std::fs::{write, remove_file};
-use std::collections::{HashMap, BTreeMap, BTreeSet};
-use git_commands::*;
-use std::path::Path;
 use anyhow::{anyhow, Result};
+use git_commands::*;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fs::{remove_file, write};
+use std::path::Path;
+use tempfile::{tempdir, TempDir};
 
 mod random_repo;
 pub use random_repo::*;
@@ -18,18 +18,40 @@ pub fn git_fixed_dates() {
 /// Create a temporary directory and initialise it as a Git repo.
 pub fn create_temporary_git_repo() -> TempDir {
     let repo_dir = tempdir().expect("Couldn't create temporary directory");
-    git(&["init", "--initial-branch=master"], &repo_dir.path()).expect("error initialising git repo");
+    git(&["init", "--initial-branch=master"], &repo_dir.path())
+        .expect("error initialising git repo");
     // You have to set these otherwise Git can't do commits.
-    git(&["config", "user.email", "me@example.com"], &repo_dir.path()).expect("error setting config");
+    git(
+        &["config", "user.email", "me@example.com"],
+        &repo_dir.path(),
+    )
+    .expect("error setting config");
     git(&["config", "user.name", "Me"], &repo_dir.path()).expect("error setting config");
     // Hide detached head warnings.
-    git(&["config", "advice.detachedHead", "false"], &repo_dir.path()).expect("error setting config");
+    git(
+        &["config", "advice.detachedHead", "false"],
+        &repo_dir.path(),
+    )
+    .expect("error setting config");
     repo_dir
 }
 
 // Run `git log` to show the commit graph.
 pub fn print_git_log_graph(repo_dir: &Path) {
-    let out = git(&["--no-pager", "log", "--oneline", "--decorate", "--graph", "--all", "--color=always"], repo_dir).expect("git log failed").stdout;
+    let out = git(
+        &[
+            "--no-pager",
+            "log",
+            "--oneline",
+            "--decorate",
+            "--graph",
+            "--all",
+            "--color=always",
+        ],
+        repo_dir,
+    )
+    .expect("git log failed")
+    .stdout;
     println!("\n{}\n", String::from_utf8_lossy(&out));
 }
 
@@ -58,7 +80,8 @@ impl CommitDescription {
         self
     }
     pub fn write(mut self, filename: &str, contents: &str) -> Self {
-        self.changes.insert(filename.to_owned(), Some(contents.to_owned()));
+        self.changes
+            .insert(filename.to_owned(), Some(contents.to_owned()));
         self
     }
     pub fn delete(mut self, filename: &str) -> Self {
@@ -106,7 +129,12 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
     // Then each time we can just check out the commit detached,
     // add all the children, then recurse to the children.
 
-    fn process_commit(c: &CommitDescription, repo_path: &Path, parent: Option<&str>, hash_by_id: &mut HashMap<i32, String>) {
+    fn process_commit(
+        c: &CommitDescription,
+        repo_path: &Path,
+        parent: Option<&str>,
+        hash_by_id: &mut HashMap<i32, String>,
+    ) {
         // Make changes to filesystem.
         for (path, change) in &c.changes {
             let path = repo_path.join(path);
@@ -123,7 +151,9 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
         }
 
         git(&["add", "."], repo_path).expect("error adding changes");
-        let tree_object = git(&["write-tree"], repo_path).expect("error writing tree").stdout;
+        let tree_object = git(&["write-tree"], repo_path)
+            .expect("error writing tree")
+            .stdout;
         let tree_object = String::from_utf8_lossy(&tree_object);
         let tree_object = tree_object.trim();
 
@@ -171,7 +201,8 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
     process_commit(root, repo.path(), None, &mut hash_by_id);
 
     if let Some(checkout_when_done) = checkout_when_done {
-        git(&["checkout", checkout_when_done], repo.path()).expect("couldn't check out final thing");
+        git(&["checkout", checkout_when_done], repo.path())
+            .expect("couldn't check out final thing");
     }
 
     repo
@@ -202,7 +233,8 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitGraphNod
     for line in commit_parents.lines() {
         let mut parts = line.split_ascii_whitespace();
         let commit = parts.next().ok_or(anyhow!("invalid git log output"))?;
-        commits.entry(commit.to_string()).or_default().parents = parts.map(|p| p.to_owned()).collect();
+        commits.entry(commit.to_string()).or_default().parents =
+            parts.map(|p| p.to_owned()).collect();
     }
 
     let commit_refs = git(&["log", "--all", "--format=%H,%D"], repo_dir)?.stdout;
@@ -210,16 +242,16 @@ pub fn get_repo_graph(repo_dir: &Path) -> Result<BTreeMap<String, CommitGraphNod
     for line in commit_refs.lines() {
         let mut parts = line.split(',');
         let commit = parts.next().ok_or(anyhow!("invalid git log output"))?;
-        commits.entry(commit.to_string()).or_default().refs = parts.filter_map(
-            |p| {
+        commits.entry(commit.to_string()).or_default().refs = parts
+            .filter_map(|p| {
                 let p = p.trim().trim_start_matches("HEAD -> ");
                 if p == "HEAD" {
                     None
                 } else {
                     Some(p.to_owned())
                 }
-            }
-        ).collect();
+            })
+            .collect();
     }
 
     // let commit_subject = git(&["log", "--all", "--format=%H%x00%s"], repo_dir)?.stdout;

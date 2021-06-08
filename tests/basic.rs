@@ -1,21 +1,15 @@
-
 mod utils;
-use utils::*;
 use autorebase::autorebase;
+use utils::*;
 
 // Test building a repo using `build_repo`.
 #[test]
 fn test_build_repo() {
     git_fixed_dates();
 
-    let root =
-        commit("Hello")
+    let root = commit("Hello")
         .write("a.txt", "hello")
-        .child(
-            commit("World")
-            .write("a.txt", "world")
-            .branch("master")
-        );
+        .child(commit("World").write("a.txt", "world").branch("master"));
 
     let repo = build_repo(&root, Some("master"));
 
@@ -59,19 +53,10 @@ fn basic_autorebase_fast() {
 fn basic_autorebase(slow_conflict_detection: bool) {
     git_fixed_dates();
 
-    let root =
-        commit("First")
+    let root = commit("First")
         .write("a.txt", "hello")
-        .child(
-            commit("Second")
-            .write("a.txt", "world")
-            .branch("master")
-        )
-        .child(
-            commit("WIP")
-            .write("b.txt", "foo")
-            .branch("wip")
-        );
+        .child(commit("Second").write("a.txt", "world").branch("master"))
+        .child(commit("WIP").write("b.txt", "foo").branch("wip"));
 
     let repo = build_repo(&root, Some("master"));
 

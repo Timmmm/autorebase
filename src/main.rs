@@ -1,18 +1,17 @@
 // Tool to automatically rebase branches.
 
-use argh::FromArgs;
 use anyhow::Result;
+use argh::FromArgs;
 
-use autorebase::{get_repo_path, autorebase};
+use autorebase::{autorebase, get_repo_path};
 
 #[derive(FromArgs)]
 /// Automatically pull the master branch and rebase all branches without
 /// upstreams onto it.
 struct CliOptions {
     /// the target branch to pull and rebase onto (typically "master" or "develop")
-    #[argh(option, default="String::from(\"master\")")]
+    #[argh(option, default = "String::from(\"master\")")]
     onto: String,
-
     // try rebasing commit by commit if there are conflicts, instead of trying
     // to determind the conflicting commit on the target branch directly
     // #[argh(switch)]
