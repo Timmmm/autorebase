@@ -5,6 +5,9 @@ use git_commands::*;
 use std::path::Path;
 use anyhow::{anyhow, Result};
 
+mod random_repo;
+pub use random_repo::*;
+
 /// Set environment variables so Git uses fixed dates. This ensures the
 /// hashes are deterministic which is useful for tests.
 pub fn git_fixed_dates() {
