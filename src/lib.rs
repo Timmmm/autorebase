@@ -233,7 +233,7 @@ fn rebase_branch(
                 // Save the current checkout state.
                 let old_location = get_current_branch_or_commit(rebase_worktree_path)?;
 
-                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(rebase_worktree_path, &branch.branch, onto_branch, &merge_base)?;
+                let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(repo_path, rebase_worktree_path, &branch.branch, onto_branch)?;
 
                 // Restore the previous state.
                 switch_to_branch_or_commit(rebase_worktree_path, &old_location)?;
@@ -416,10 +416,10 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
 ///
 /// Note that this will change the checked out branch.
 fn count_nonconflicting_commits_via_rebase(
+    repo_path: &Path,
     worktree_path: &Path,
     branch: &str,
     onto: &str,
-    merge_base: &str,
 ) -> Result<usize> {
 
     // Create a temporary branch at master. If it already exists (e.g. because
@@ -434,13 +434,13 @@ fn count_nonconflicting_commits_via_rebase(
         return Ok(0);
     }
 
-    if !is_rebasing(worktree_path, Some("autorebase_worktree")) {
+    if !is_rebasing(repo_path, Some("autorebase_worktree")) {
         // Error - it should be rebasing!
-        bail!("Rebase succeeded but repo is still rebasing.");
+        bail!("Rebase failed but repo is not rebasing.");
     }
 
     // Count how many commits we successfully applied.
-    let commit_list = get_commit_list(worktree_path, merge_base, "HEAD")?;
+    let commit_list = get_commit_list(worktree_path, branch, "HEAD")?;
 
     // Abort the rebase.
     git(&["rebase", "--abort"], worktree_path)?;
