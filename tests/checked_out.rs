@@ -6,7 +6,16 @@ use std::fs;
 
 // Check we can rebase with the current checked out branch.
 #[test]
-fn checkedout_clean() {
+fn checkedout_clean_slow() {
+    checkedout_clean(true);
+}
+
+#[test]
+fn checkedout_clean_fast() {
+    checkedout_clean(false);
+}
+
+fn checkedout_clean(slow_conflict_detection: bool) {
     git_fixed_dates();
 
     let root =
@@ -29,7 +38,7 @@ fn checkedout_clean() {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
@@ -64,7 +73,16 @@ fn checkedout_clean() {
 
 // Nothing should happen in this case though because the tree is dirty.
 #[test]
-fn checkedout_dirty() {
+fn checkedout_dirty_slow() {
+    checkedout_dirty(true);
+}
+
+#[test]
+fn checkedout_dirty_fast() {
+    checkedout_dirty(false);
+}
+
+fn checkedout_dirty(slow_conflict_detection: bool) {
     git_fixed_dates();
 
     let root =
@@ -90,7 +108,7 @@ fn checkedout_dirty() {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

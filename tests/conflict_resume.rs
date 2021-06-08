@@ -10,7 +10,16 @@ use std::fs;
 // by conflicts. Finally we modify the branch which should cause it to attempt
 // a rebase again when we run `autorebase` for the third time.
 #[test]
-fn conflict_resume() {
+fn conflict_resume_slow() {
+    conflict_resume(true);
+}
+
+#[test]
+fn conflict_resume_fast() {
+    conflict_resume(false);
+}
+
+fn conflict_resume(slow_conflict_detection: bool) {
     git_fixed_dates();
 
     let root =
@@ -43,7 +52,7 @@ fn conflict_resume() {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

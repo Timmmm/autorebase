@@ -4,7 +4,16 @@ use autorebase::autorebase;
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts.
 #[test]
-fn conflict() {
+fn conflict_slow() {
+    conflict(true);
+}
+
+#[test]
+fn conflict_fast() {
+    conflict(false);
+}
+
+fn conflict(slow_conflict_detection: bool) {
     git_fixed_dates();
 
     let root =
@@ -37,7 +46,7 @@ fn conflict() {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

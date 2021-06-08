@@ -47,7 +47,16 @@ fn test_build_repo() {
 
 // Very basic autorebase test.
 #[test]
-fn basic_autorebase() {
+fn basic_autorebase_slow() {
+    basic_autorebase(true);
+}
+
+#[test]
+fn basic_autorebase_fast() {
+    basic_autorebase(false);
+}
+
+fn basic_autorebase(slow_conflict_detection: bool) {
     git_fixed_dates();
 
     let root =
@@ -70,7 +79,7 @@ fn basic_autorebase() {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
