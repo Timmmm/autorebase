@@ -1,5 +1,4 @@
-mod utils;
-use utils::*;
+use crate::utils::*;
 
 // Not actually a test; just generate a repo for demonstration purposes.
 //

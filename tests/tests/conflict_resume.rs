@@ -1,8 +1,7 @@
-mod utils;
 use autorebase::autorebase;
 use git_commands::git;
 use std::fs;
-use utils::*;
+use crate::{commit_graph, utils::*};
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts,
 // However we then change master so there's no conflict, but when we run `autorebase`

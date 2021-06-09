@@ -1,6 +1,5 @@
-mod utils;
 use autorebase::autorebase;
-use utils::*;
+use crate::{commit_graph, utils::*};
 
 // Basic test but there is more than one branch that needs to be rebased.
 #[test]

@@ -1,6 +1,5 @@
-mod utils;
 use autorebase::autorebase;
-use utils::*;
+use crate::{commit_graph, utils::*};
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts.
 #[test]

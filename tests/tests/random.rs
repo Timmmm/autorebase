@@ -1,6 +1,5 @@
-mod utils;
 use autorebase::autorebase;
-use utils::*;
+use crate::utils::*;
 
 // Test randomly generated repos.
 #[test]
