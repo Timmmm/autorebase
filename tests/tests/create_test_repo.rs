@@ -3,6 +3,9 @@ use crate::utils::*;
 // Not actually a test; just generate a repo for demonstration purposes.
 //
 // Run `cargo test create_test_repo -- --nocapture --include-ignored`
+//
+// To watch changes: `watchexec --no-default-ignore -w .git -- 'tput reset; git --no-pager log --oneline --all --graph --decorate'`
+//
 #[ignore]
 #[test]
 fn create_test_repo() {
@@ -68,6 +71,11 @@ fn create_test_repo() {
                         .write("Readme.md", "This is a really great project")
                         .branch("readme")
                     )
+                )
+                .child(
+                    commit("Make sweet asciinema demo")
+                    .write("demo.asciinema", "...")
+                    .branch("demo")
                 )
             )
             .child(
