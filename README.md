@@ -16,6 +16,8 @@ Let's `autorebase`!
 
 This has attempted to rebase all of the branches. `demo` and `readme` were successfully rebased onto `master`. However the other branches had conflicts, so they were not rebased all the way to `master`. Instead they were rebased to just before the commit that caused the conflicts.
 
+If a commit couldn't be fully rebased due to conflicts, it is marked as such and rebasing it won't be attempted again until its commit hash changes (e.g. to being edited or manually rebased).
+
 ![](doc/after.svg)
 
 ## Installation
