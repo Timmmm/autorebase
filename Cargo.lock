@@ -54,6 +54,7 @@ dependencies = [
  "argh",
  "colored",
  "git_commands",
+ "rand",
  "serde",
  "tempfile",
  "toml",

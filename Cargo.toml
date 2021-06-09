@@ -19,3 +19,4 @@ toml = "0.5"
 [dev-dependencies]
 # For tests
 tempfile = "3.1.0"
+rand = "0.8.3"
