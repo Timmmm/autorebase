@@ -4,7 +4,9 @@
 
 <img align="right" src="logo.svg">
 
-Autorebase automatically rebases all of your feature branches onto `master`. If conflicts are found it will rebase to the last commit that doesn't cause conflicts. Currently it will rebase all branches that don't have an upstream. You don't need to switch to any branch, the only limitation is that a branch that is checked out and not clean will not be rebased (though I may add that in future).
+Autorebase automatically rebases all of your feature branches onto `master`. If conflicts are found it will rebase to the last commit that doesn't cause conflicts.
+By default, branches with an upstream are excluded.
+You don't need to switch to any branch, the only limitation is that a branch that is checked out and not clean will not be rebased (though I may add that in future).
 
 Here is a demo. Before autorebase we have a number of old feature branches.
 
@@ -32,7 +34,7 @@ Just run `autorebase` in your repo. This will perform the following actions
 
 1. Update `master`, by pulling it with `--ff-only` unless you have it checked out with pending changes.
 2. Create a temporary work tree inside `.git/autorebase` (this is currently never deleted but you can do it manually with `git worktree remove autorebase_worktree`).
-3. Get the list of branches that have no upstream, and aren't checked out with pending changes.
+3. Get the list of branches that have no upstream (except with `--all-branches`), and aren't checked out with pending changes.
 4. For each branch:
     1. Try to rebase it onto `master`.
     2. If that fails due to conflicts, abort and try to rebase it as far as possible. There are two strategies for this (see below).
