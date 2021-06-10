@@ -1,5 +1,5 @@
-use autorebase::autorebase;
 use crate::{commit_graph, utils::*};
+use autorebase::autorebase;
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts.
 #[test]

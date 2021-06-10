@@ -1,5 +1,5 @@
-use autorebase::autorebase;
 use crate::utils::*;
+use autorebase::autorebase;
 
 // Test randomly generated repos.
 #[test]
@@ -41,7 +41,6 @@ fn random_test_many_fast() {
 }
 
 fn random_test_many(slow_conflict_detection: bool) {
-
     // This takes about 0.5 seconds per iteration.
     for _ in 0..10 {
         random_test(slow_conflict_detection);

@@ -605,7 +605,6 @@ fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> 
         return Ok(BranchOrCommit::Branch(branch));
     }
 
-
     let commit = get_commit_hash(worktree_path, "HEAD")?;
     Ok(BranchOrCommit::Commit(commit))
 }

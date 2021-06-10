@@ -1,5 +1,5 @@
-use autorebase::autorebase;
 use crate::{commit_graph, utils::*};
+use autorebase::autorebase;
 
 // Test building a repo using `build_repo`.
 #[test]

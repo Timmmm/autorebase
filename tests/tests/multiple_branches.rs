@@ -1,5 +1,5 @@
-use autorebase::autorebase;
 use crate::{commit_graph, utils::*};
+use autorebase::autorebase;
 
 // Basic test but there is more than one branch that needs to be rebased.
 #[test]

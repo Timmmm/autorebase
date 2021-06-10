@@ -1,7 +1,7 @@
+use crate::{commit_graph, utils::*};
 use autorebase::autorebase;
 use git_commands::git;
 use std::fs;
-use crate::{commit_graph, utils::*};
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts,
 // However we then change master so there's no conflict, but when we run `autorebase`
@@ -162,7 +162,6 @@ fn conflict_resume(slow_conflict_detection: bool) {
 
     // Check out master again so `wip` can be autorebased.
     git(&["checkout", "master"], repo_dir).expect("error checking out master");
-
 
     // Ok if we run `autorebase` is should succesfully rebase to master.
 

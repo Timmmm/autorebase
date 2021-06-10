@@ -1,5 +1,5 @@
-use autorebase::autorebase;
 use crate::{commit_graph, utils::*};
+use autorebase::autorebase;
 
 // Basic test but there are multiple chained refs on the branch.
 #[test]

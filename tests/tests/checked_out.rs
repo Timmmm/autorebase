@@ -1,6 +1,6 @@
+use crate::{commit_graph, utils::*};
 use autorebase::autorebase;
 use std::fs;
-use crate::{commit_graph, utils::*};
 
 // Check we can rebase with the current checked out branch.
 #[test]
