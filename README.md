@@ -44,7 +44,7 @@ Full usage is:
 
 `<target_branch>` is `master` by default. If you develop on `develop` you probably want `autorebase --onto develop`.
 
-There are two conflict detection strategies. The default is fast; `--slow` selects the slow method. The slow method simply tries rebasing onto `master^`, `master^^`, `master^^^` and so on until one works or we get to the merge base.
+There are two strategies to deal with conflicts. The default is fast; `--slow` selects the slow method. The slow method simply tries rebasing onto `master^`, `master^^`, `master^^^` and so on until one works or we get to the merge base.
 
 The fast method tries to rebase `master` onto the feature branch. It counts how many commits succeed, and assumes that these ones don't conflict, and the next commit must be the offending one. Then it aborts the rebase and rebases the feature branch to just before that commit.
 
