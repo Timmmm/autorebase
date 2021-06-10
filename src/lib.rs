@@ -404,6 +404,10 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
                 worktree,
             })
         })
+        .filter(|branch| match branch {
+            Ok(b) if b.branch == TEMPORARY_BRANCH_NAME => false,
+            _ => true,
+        })
         .collect::<Result<_, _>>()?;
     Ok(branches)
 }
@@ -472,6 +476,8 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
     Ok(RebaseResult::Conflict)
 }
 
+const TEMPORARY_BRANCH_NAME: &'static str = "autorebase_tmp_safe_to_delete";
+
 /// Create a temporary branch at master (`onto`), then try to rebase it ont
 /// `branch`. Count how many commits were rebased successfully, and
 /// return that number. Then abort the rebase, and delete the branch.
@@ -486,12 +492,7 @@ fn count_nonconflicting_commits_via_rebase(
     // Create a temporary branch at master. If it already exists (e.g. because
     // a previous command failed) just reset it to here.
     git(
-        &[
-            "switch",
-            "--force-create",
-            "autorebase_tmp_safe_to_delete",
-            onto,
-        ],
+        &["switch", "--force-create", TEMPORARY_BRANCH_NAME, onto],
         worktree_path,
     )?;
 
@@ -519,12 +520,7 @@ fn count_nonconflicting_commits_via_rebase(
     git(&["switch", "--detach", onto], worktree_path)?;
 
     git(
-        &[
-            "branch",
-            "--delete",
-            "--force",
-            "autorebase_tmp_safe_to_delete",
-        ],
+        &["branch", "--delete", "--force", TEMPORARY_BRANCH_NAME],
         worktree_path,
     )?;
 
