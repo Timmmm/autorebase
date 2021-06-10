@@ -1,14 +1,15 @@
-use crate::utils::*;
+#[path = "../tests/utils/mod.rs"]
+mod utils;
+use utils::*;
 
-// Not actually a test; just generate a repo for demonstration purposes.
+// This program just creates an example repo so you can try out autorebase.
+// It is created in a temporary directory that is printed at the end.
 //
-// Run `cargo test create_test_repo -- --nocapture --include-ignored`
+// To run: `cargo run --example create_demo_repo`
 //
 // To watch changes: `watchexec --no-default-ignore -w .git -- 'tput reset; git --no-pager log --oneline --all --graph --decorate'`
 //
-#[ignore]
-#[test]
-fn create_test_repo() {
+fn main() {
     git_fixed_dates();
 
     let root = commit("Initial commit")
