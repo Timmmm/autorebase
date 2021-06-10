@@ -34,9 +34,9 @@ Just run `autorebase` in your repo. This will perform the following actions
 2. Create a temporary work tree inside `.git/autorebase` (this is currently never deleted but you can do it manually with `git worktree remove autorebase_worktree`).
 3. Get the list of branches that have no upstream, and aren't checked out with pending changes.
 4. For each branch:
-  1. Try to rebase it onto `master`.
-  2. If that fails due to conflicts, abort and try to rebase it as far as possible. There are two strategies for this (see below).
-  3. If we didn't manage to rebase all the way to `master`, then mark the branch as "stuck" so it isn't attempted in future. To "unstick" it, rebase manually or add more commits to the branch.
+    1. Try to rebase it onto `master`.
+    2. If that fails due to conflicts, abort and try to rebase it as far as possible. There are two strategies for this (see below).
+    3. If we didn't manage to rebase all the way to `master`, then mark the branch as "stuck" so it isn't attempted in future. To "unstick" it, rebase manually or add more commits to the branch.
 
 Full usage is:
 
