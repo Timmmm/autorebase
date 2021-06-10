@@ -34,7 +34,7 @@ fn conflict(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

@@ -41,6 +41,7 @@ pub fn autorebase(
     repo_path: &Path,
     onto_branch: &str,
     slow_conflict_detection: bool,
+    include_all_branches: bool,
 ) -> Result<()> {
     // Check the git version. `git switch` was introduced in 2.23.
     if git_version(repo_path)?.as_slice() < &[2, 23] {
@@ -83,7 +84,7 @@ pub fn autorebase(
     for branch in all_branches.iter() {
         if branch.branch == onto_branch {
             eprintln!("    - {} (target branch)", branch.branch.blue().bold());
-        } else if branch.upstream.is_some() {
+        } else if !include_all_branches && branch.upstream.is_some() {
             eprintln!(
                 "    - {} (skipping because it has an upstream)",
                 branch.branch.bold()
@@ -103,7 +104,7 @@ pub fn autorebase(
         .iter()
         .filter(|branch| {
             branch.branch != onto_branch
-                && branch.upstream.is_none()
+                && (include_all_branches || branch.upstream.is_none())
                 && !matches!(&branch.worktree, Some(worktree) if !worktree.clean)
         })
         .collect();

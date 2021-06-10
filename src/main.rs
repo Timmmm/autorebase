@@ -17,6 +17,9 @@ struct CliOptions {
     /// target branch directly
     #[argh(switch)]
     slow: bool,
+    /// include branches which have an upstream, the default is to exclude these
+    #[argh(switch)]
+    all_branches: bool,
 }
 
 fn main() -> Result<()> {
@@ -35,7 +38,12 @@ fn run() -> Result<()> {
     // Find the repo dir in the same way git does.
     let repo_path = get_repo_path()?;
 
-    autorebase(&repo_path, &options.onto, options.slow)?;
+    autorebase(
+        &repo_path,
+        &options.onto,
+        options.slow,
+        options.all_branches,
+    )?;
 
     Ok(())
 }
