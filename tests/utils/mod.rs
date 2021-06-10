@@ -63,7 +63,7 @@ pub struct CommitDescription {
     /// Map from filename to the new contents or None to delete it.
     changes: HashMap<String, Option<String>>,
     /// Branch names on this commit.
-    branches: Vec<String>,
+    branches: Vec<(String, Option<String>)>,
     /// Child commits.
     children: Vec<CommitDescription>,
     /// ID, only used for merge_parents.
@@ -89,7 +89,12 @@ impl CommitDescription {
         self
     }
     pub fn branch(mut self, branch_name: &str) -> Self {
-        self.branches.push(branch_name.to_owned());
+        self.branches.push((branch_name.to_owned(), None));
+        self
+    }
+    pub fn branch_with_upstream(mut self, branch_name: &str, upstream_name: &str) -> Self {
+        self.branches
+            .push((branch_name.to_owned(), Some(upstream_name.to_owned())));
         self
     }
     pub fn child(mut self, commit: CommitDescription) -> Self {
@@ -180,8 +185,15 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
         git(&["checkout", this_commit], repo_path).expect("error checking out commit");
 
         // Set branches.
-        for branch in c.branches.iter() {
+        for (branch, upstream) in c.branches.iter() {
             git(&["branch", branch], repo_path).expect("error setting branch");
+            if let Some(upstream) = upstream.as_ref() {
+                git(
+                    &["branch", &format!("--set-upstream-to={}", upstream), branch],
+                    repo_path,
+                )
+                .expect("error setting branch upstream");
+            }
         }
 
         if let Some(id) = c.id {

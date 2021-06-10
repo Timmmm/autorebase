@@ -31,7 +31,7 @@ pub fn random_repo(allow_merges: bool) -> CommitDescription {
             let branch_name = format!("branch_{}", rng.gen_range(0..1000000));
             if !branches.contains(&branch_name) {
                 branches.insert(branch_name.clone());
-                commit.branches.push(branch_name);
+                commit.branches.push((branch_name, None));
             }
         }
 
@@ -51,7 +51,7 @@ pub fn random_repo(allow_merges: bool) -> CommitDescription {
 
         // So that we guarantee something is `master`, the first tip will be master.
         if !branches.contains("master") {
-            commit.branches.push("master".to_owned());
+            commit.branches.push(("master".to_owned(), None));
             branches.insert("master".to_owned());
         }
 
