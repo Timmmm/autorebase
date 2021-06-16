@@ -42,7 +42,10 @@ Just run `autorebase` in your repo. This will perform the following actions
 
 Full usage is:
 
-    autorebase [--slow] [--onto <target_branch>]
+    autorebase
+        [--slow]
+        [--all-branches]
+        [--onto <target_branch>]
 
 `<target_branch>` is `master` by default. If you develop on `develop` you probably want `autorebase --onto develop`.
 
