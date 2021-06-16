@@ -41,6 +41,7 @@ pub fn autorebase(
     repo_path: &Path,
     onto_branch: &str,
     slow_conflict_detection: bool,
+    include_all_branches: bool,
 ) -> Result<()> {
     // Check the git version. `git switch` was introduced in 2.23.
     if git_version(repo_path)?.as_slice() < &[2, 23] {
@@ -83,7 +84,7 @@ pub fn autorebase(
     for branch in all_branches.iter() {
         if branch.branch == onto_branch {
             eprintln!("    - {} (target branch)", branch.branch.blue().bold());
-        } else if branch.upstream.is_some() {
+        } else if !include_all_branches && branch.upstream.is_some() {
             eprintln!(
                 "    - {} (skipping because it has an upstream)",
                 branch.branch.bold()
@@ -103,7 +104,7 @@ pub fn autorebase(
         .iter()
         .filter(|branch| {
             branch.branch != onto_branch
-                && branch.upstream.is_none()
+                && (include_all_branches || branch.upstream.is_none())
                 && !matches!(&branch.worktree, Some(worktree) if !worktree.clean)
         })
         .collect();
@@ -403,6 +404,10 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
                 worktree,
             })
         })
+        .filter(|branch| match branch {
+            Ok(b) if b.branch == TEMPORARY_BRANCH_NAME => false,
+            _ => true,
+        })
         .collect::<Result<_, _>>()?;
     Ok(branches)
 }
@@ -471,6 +476,8 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
     Ok(RebaseResult::Conflict)
 }
 
+const TEMPORARY_BRANCH_NAME: &'static str = "autorebase_tmp_safe_to_delete";
+
 /// Create a temporary branch at master (`onto`), then try to rebase it ont
 /// `branch`. Count how many commits were rebased successfully, and
 /// return that number. Then abort the rebase, and delete the branch.
@@ -485,12 +492,7 @@ fn count_nonconflicting_commits_via_rebase(
     // Create a temporary branch at master. If it already exists (e.g. because
     // a previous command failed) just reset it to here.
     git(
-        &[
-            "switch",
-            "--force-create",
-            "autorebase_tmp_safe_to_delete",
-            onto,
-        ],
+        &["switch", "--force-create", TEMPORARY_BRANCH_NAME, onto],
         worktree_path,
     )?;
 
@@ -518,12 +520,7 @@ fn count_nonconflicting_commits_via_rebase(
     git(&["switch", "--detach", onto], worktree_path)?;
 
     git(
-        &[
-            "branch",
-            "--delete",
-            "--force",
-            "autorebase_tmp_safe_to_delete",
-        ],
+        &["branch", "--delete", "--force", TEMPORARY_BRANCH_NAME],
         worktree_path,
     )?;
 
@@ -604,7 +601,6 @@ fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> 
     if let Some(branch) = get_current_branch(worktree_path)? {
         return Ok(BranchOrCommit::Branch(branch));
     }
-
 
     let commit = get_commit_hash(worktree_path, "HEAD")?;
     Ok(BranchOrCommit::Commit(commit))

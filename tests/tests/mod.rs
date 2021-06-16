@@ -1,5 +1,6 @@
-mod basic_conflict;
+mod all_branches;
 mod basic;
+mod basic_conflict;
 mod checked_out;
 mod conflict_resume;
 mod multiple_branches;

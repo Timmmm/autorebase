@@ -1,4 +1,3 @@
-
 use super::CommitDescription;
 use rand::Rng;
 use std::collections::HashSet;
@@ -12,7 +11,11 @@ pub fn random_repo(allow_merges: bool) -> CommitDescription {
 
     // This uses recursion so we need to set a maximum depth to avoid stack overflows.
 
-    fn randomise_commit(commit: &mut CommitDescription, branches: &mut HashSet<String>, depth: u32) {
+    fn randomise_commit(
+        commit: &mut CommitDescription,
+        branches: &mut HashSet<String>,
+        depth: u32,
+    ) {
         let mut rng = rand::thread_rng();
 
         // Randomly set the name, branch, contents, etc.
@@ -20,12 +23,15 @@ pub fn random_repo(allow_merges: bool) -> CommitDescription {
         // The filename and contents are drawn from a small distribution to
         // give a reasonable chance of writing the same file to make conflicts,
         // or serendipitously eliminating conflicts.
-        commit.changes.insert(format!("{}.txt", rng.gen_range(0..8)), Some(format!("{}", rng.gen_range(0..8))));
+        commit.changes.insert(
+            format!("{}.txt", rng.gen_range(0..8)),
+            Some(format!("{}", rng.gen_range(0..8))),
+        );
         if rng.gen_bool(0.1) {
             let branch_name = format!("branch_{}", rng.gen_range(0..1000000));
             if !branches.contains(&branch_name) {
                 branches.insert(branch_name.clone());
-                commit.branches.push(branch_name);
+                commit.branches.push((branch_name, None));
             }
         }
 
@@ -45,10 +51,9 @@ pub fn random_repo(allow_merges: bool) -> CommitDescription {
 
         // So that we guarantee something is `master`, the first tip will be master.
         if !branches.contains("master") {
-            commit.branches.push("master".to_owned());
+            commit.branches.push(("master".to_owned(), None));
             branches.insert("master".to_owned());
         }
-
 
         for _ in 0..num_children {
             // Add a child commit

@@ -1,5 +1,5 @@
-use autorebase::autorebase;
 use crate::{commit_graph, utils::*};
+use autorebase::autorebase;
 
 // Basic test but there is more than one branch that needs to be rebased.
 #[test]
@@ -27,7 +27,7 @@ fn multiple_branches(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

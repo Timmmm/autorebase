@@ -1,7 +1,7 @@
+use crate::{commit_graph, utils::*};
 use autorebase::autorebase;
 use git_commands::git;
 use std::fs;
-use crate::{commit_graph, utils::*};
 
 // Single branch that cannot be rebased all the way to `master` commit due to conflicts,
 // However we then change master so there's no conflict, but when we run `autorebase`
@@ -40,7 +40,7 @@ fn conflict_resume(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", slow_conflict_detection).expect("error autorebasing");
+    autorebase(repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
@@ -98,7 +98,7 @@ fn conflict_resume(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", true, false).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
@@ -163,12 +163,11 @@ fn conflict_resume(slow_conflict_detection: bool) {
     // Check out master again so `wip` can be autorebased.
     git(&["checkout", "master"], repo_dir).expect("error checking out master");
 
-
     // Ok if we run `autorebase` is should succesfully rebase to master.
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", true).expect("error autorebasing");
+    autorebase(repo_dir, "master", true, false).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
