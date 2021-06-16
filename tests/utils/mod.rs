@@ -62,7 +62,7 @@ pub struct CommitDescription {
     message: String,
     /// Map from filename to the new contents or None to delete it.
     changes: HashMap<String, Option<String>>,
-    /// Branch names on this commit.
+    /// Branch names on this commit, and their upstream branch if any.
     branches: Vec<(String, Option<String>)>,
     /// Child commits.
     children: Vec<CommitDescription>,

@@ -404,10 +404,8 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
                 worktree,
             })
         })
-        .filter(|branch| match branch {
-            Ok(b) if b.branch == TEMPORARY_BRANCH_NAME => false,
-            _ => true,
-        })
+        // This temporary branch should have been deleted but filter it out just in case something went wrong.
+        .filter(|branch| !matches!(branch, Ok(b) if b.branch == TEMPORARY_BRANCH_NAME))
         .collect::<Result<_, _>>()?;
     Ok(branches)
 }
