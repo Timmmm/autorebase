@@ -495,7 +495,12 @@ fn count_nonconflicting_commits_via_rebase(
     )?;
 
     // Rebase onto branch.
-    let rebase_ok = git(&["rebase", branch], worktree_path);
+    // Disable code signing for this rebase because it is very slow and
+    // we don't need it.
+    let rebase_ok = git(
+        &["-c", "commit.gpgsign=false", "rebase", branch],
+        worktree_path,
+    );
     if rebase_ok.is_ok() {
         // Rebase worked one way but not in the other. Bit weird. This probably
         // shouldn't happen normally but we'll just give up.
