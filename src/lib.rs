@@ -3,7 +3,8 @@ use colored::*;
 use git_commands::*;
 use std::{
     env,
-    path::{Path, PathBuf},
+    fs::read_to_string,
+    path::{Component, Path, PathBuf},
     process::Command,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -456,6 +457,11 @@ enum RebaseResult {
     Conflict,
 }
 
+// Attempt to rebase the current branch in the `worktree_path` onto the `onto`
+// branch. `repo_path` points to the root of the repo (e.g. `/foo`).
+// `worktree_path` points to the worktree, which may be the same (`/foo`)
+// or may be another path. If we are using our private worktree it will be
+// something like `/foo/.git/autorebase/autorebase_worktree`.
 fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<RebaseResult> {
     let rebase_ok = git(&["rebase", onto], worktree_path);
     if rebase_ok.is_ok() {
@@ -466,7 +472,12 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
     // the rebase status like this:
     // https://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress/67245016#67245016
 
-    if is_rebasing(repo_path, Some("autorebase_worktree")) {
+    // We have to find the name of the worktree from its path because
+    // git stores information about worktrees in `.git/worktrees/<worktree_name>`.
+
+    let worktree = get_worktree_name(worktree_path)?;
+
+    if is_rebasing(repo_path, worktree.as_deref()) {
         // Abort the rebase.
         git(&["rebase", "--abort"], worktree_path)?;
     }
@@ -507,7 +518,9 @@ fn count_nonconflicting_commits_via_rebase(
         return Ok(0);
     }
 
-    if !is_rebasing(repo_path, Some("autorebase_worktree")) {
+    let worktree = get_worktree_name(worktree_path)?;
+
+    if !is_rebasing(repo_path, worktree.as_deref()) {
         // Error - it should be rebasing!
         bail!("Rebase failed but repo is not rebasing.");
     }
@@ -622,4 +635,36 @@ fn switch_to_branch_or_commit(
         }
     }
     Ok(())
+}
+
+// Given a worktree path, return the name of the worktree. This is determined
+// by a file called `.git` in the worktree which contains something like:
+//
+//  gitdir: /path/to/repo/.git/worktrees/<worktree_name>
+//
+fn get_worktree_name(worktree_path: &Path) -> Result<Option<String>> {
+    let dotgit_path = worktree_path.join(".git");
+    if dotgit_path.is_dir() {
+        // It's the main worktree.
+        return Ok(None);
+    }
+    // It should be a file.
+    let gitdir = read_to_string(dotgit_path)?;
+
+    if let Some(path_str) = gitdir.trim().strip_prefix("gitdir: ") {
+        let path = Path::new(path_str);
+        path.components()
+            .last()
+            .ok_or_else(|| anyhow!("Invalid worktree/.git path: '{}'", path_str))
+            .map(Into::into)
+            .and_then(|component| match component {
+                Component::Normal(s) => s
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Worktree path component is not valid Unicode: {:?}", s))
+                    .map(|t| Some(t.to_owned())),
+                _ => bail!("Invalid worktree/.git path ending: '{}'", path_str),
+            })
+    } else {
+        bail!("Invalid worktree/.git contents: '{}'", gitdir);
+    }
 }
