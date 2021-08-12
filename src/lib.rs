@@ -32,20 +32,20 @@ fn set_committer_date_to_now() {
     );
 }
 
-/// Autorebase all branches in `repo_path` onto the `onto_branch` (typically "master").
-/// If `slow_conflict_detection` is true it will try every commit when there is a
-/// conflict until one works. Reliably but slow. If it is false it will try to
-/// detect the first commit that causes a conflict and rebase to just before that.
-/// Way faster, but may not always work.
+/// Autorebase all branches in the repo containing `path` onto the `onto_branch`
+/// (typically "master"). If `slow_conflict_detection` is true it will try every
+/// commit when there is a conflict until one works. Reliably but slow. If it is
+/// false it will try to detect the first commit that causes a conflict and
+/// rebase to just before that. Way faster, but may not always work.
 ///
 pub fn autorebase(
-    repo_path: &Path,
+    path: &Path,
     onto_branch: &str,
     slow_conflict_detection: bool,
     include_all_branches: bool,
 ) -> Result<()> {
     // Check the git version. `git switch` was introduced in 2.23.
-    if git_version(repo_path)?.as_slice() < &[2, 23] {
+    if git_version()?.as_slice() < &[2, 23] {
         bail!("Your Git installation is too old - version 2.23 or later is required");
     }
 
@@ -55,7 +55,15 @@ pub fn autorebase(
     // get different hashes and end up as separate commits.
     set_committer_date_to_now();
 
-    let conflicts_path = repo_path.join(".git/autorebase/conflicts.toml");
+    // The path to the worktree root. This will normally be the root of the
+    // main repo, but if you are in another worktree it will be the root there
+    // instead.
+    let worktree_root_path = get_worktree_path(path)?;
+
+    // Get the path to the main `.git` directory.
+    let git_common_dir = get_git_common_dir(&worktree_root_path)?;
+
+    let conflicts_path = git_common_dir.join("autorebase/conflicts.toml");
 
     let mut conflicts = if conflicts_path.is_file() {
         Conflicts::read_from_file(&conflicts_path)?
@@ -63,18 +71,20 @@ pub fn autorebase(
         Default::default()
     };
 
-    let worktree_path = repo_path.join(".git/autorebase/autorebase_worktree");
+    let autorebase_worktree_path = git_common_dir.join("autorebase/autorebase_worktree");
 
-    if !worktree_path.is_dir() {
+    if !autorebase_worktree_path.is_dir() {
         eprint!("{}", "• Creating worktree...".yellow());
-        create_scratch_worktree(&repo_path, &worktree_path)?;
+        // The `git worktree add` command can be run from any worktree.
+        create_scratch_worktree(&worktree_root_path, &autorebase_worktree_path)?;
         eprintln!("\r{}", "• Creating worktree...".green());
     }
 
     // For each branch, find the common ancestor with `master`. There must only be one.
 
     eprint!("{}", "• Getting branches...".yellow());
-    let all_branches = get_branches(&repo_path)?;
+    // We can get branches from any worktree.
+    let all_branches = get_branches(&worktree_root_path)?;
     let onto_branch_info = all_branches
         .iter()
         .find(|b| b.branch == onto_branch)
@@ -111,16 +121,16 @@ pub fn autorebase(
         .collect();
 
     // Pull master.
-    pull_master(onto_branch_info, &worktree_path)?;
+    pull_master(onto_branch_info, &autorebase_worktree_path)?;
 
     for branch in rebase_branches.iter() {
         rebase_branch(
             branch,
-            repo_path,
+            &git_common_dir,
             &mut conflicts,
             &conflicts_path,
             onto_branch,
-            &worktree_path,
+            &autorebase_worktree_path,
             slow_conflict_detection,
         )?;
     }
@@ -188,7 +198,7 @@ fn pull_master(onto_branch_info: &BranchInfo, worktree_path: &Path) -> Result<()
 
 fn rebase_branch(
     branch: &BranchInfo,
-    repo_path: &Path,
+    git_common_dir: &Path,
     conflicts: &mut Conflicts,
     conflicts_path: &Path,
     onto_branch: &str,
@@ -197,7 +207,7 @@ fn rebase_branch(
 ) -> Result<(), anyhow::Error> {
     eprintln!("• Rebasing {}...", branch.branch.bold());
 
-    let branch_commit = get_commit_hash(repo_path, &branch.branch)?;
+    let branch_commit = get_commit_hash(worktree_path, &branch.branch)?;
 
     if conflicts.branches.get(&branch.branch).map(|s| s.as_str()) == Some(&branch_commit) {
         eprintln!(
@@ -211,9 +221,9 @@ fn rebase_branch(
     conflicts.branches.remove(&branch.branch);
     conflicts.write_to_file(&conflicts_path)?;
 
-    let merge_base = get_merge_base(repo_path, &branch.branch, onto_branch)?;
+    let merge_base = get_merge_base(worktree_path, &branch.branch, onto_branch)?;
 
-    let target_commit_list = get_commit_list(repo_path, &merge_base, onto_branch)?;
+    let target_commit_list = get_commit_list(worktree_path, &merge_base, onto_branch)?;
 
     if target_commit_list.is_empty() {
         eprintln!("    - No rebase necessary");
@@ -237,7 +247,7 @@ fn rebase_branch(
         for target_commit in target_commit_list {
             eprintln!("    - Rebasing onto {}", target_commit.bold());
 
-            let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit)?;
+            let result = attempt_rebase(git_common_dir, rebase_worktree_path, &target_commit)?;
             match result {
                 RebaseResult::Success => {
                     eprintln!("{}", "    - Success!".green());
@@ -251,7 +261,7 @@ fn rebase_branch(
             }
         }
     } else {
-        let result = attempt_rebase(&repo_path, rebase_worktree_path, &target_commit_list[0])?;
+        let result = attempt_rebase(git_common_dir, rebase_worktree_path, &target_commit_list[0])?;
         match result {
             RebaseResult::Success => {
                 eprintln!("{}", "    - Success!".green());
@@ -266,7 +276,7 @@ fn rebase_branch(
                 let old_location = get_current_branch_or_commit(rebase_worktree_path)?;
 
                 let num_nonconflicting_commits = count_nonconflicting_commits_via_rebase(
-                    repo_path,
+                    git_common_dir,
                     rebase_worktree_path,
                     &branch.branch,
                     onto_branch,
@@ -286,7 +296,7 @@ fn rebase_branch(
                     // the branch onto master at the last commit that succeeded.
 
                     let result = attempt_rebase(
-                        &repo_path,
+                        git_common_dir,
                         rebase_worktree_path,
                         &last_nonconflicting_commit,
                     )?;
@@ -314,7 +324,7 @@ fn rebase_branch(
         );
 
         // Get the commit again because it will have changed (probably).
-        let new_branch_commit = get_commit_hash(repo_path, &branch.branch)?;
+        let new_branch_commit = get_commit_hash(worktree_path, &branch.branch)?;
 
         conflicts
             .branches
@@ -325,18 +335,25 @@ fn rebase_branch(
     Ok(())
 }
 
-/// Utility function to get the repo dir for the current directory.
-pub fn get_repo_path() -> Result<PathBuf> {
-    let output = git_cwd(&["rev-parse", "--show-toplevel"])?.stdout;
+/// Utility function to get the worktree dir for the given directory.
+pub fn get_worktree_path(for_path: &Path) -> Result<PathBuf> {
+    let output = git(&["rev-parse", "--path-format=absolute", "--show-toplevel"], for_path)?.stdout;
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
     Ok(PathBuf::from(output))
 }
 
-fn create_scratch_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
+/// Return the path to the main `.git` directory for the given directory.
+pub fn get_git_common_dir(for_path: &Path) -> Result<PathBuf> {
+    let output = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"], for_path)?.stdout;
+    let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
+    Ok(PathBuf::from(output))
+}
+
+fn create_scratch_worktree(working_dir: &Path, worktree_path: &Path) -> Result<()> {
     let worktree_path = worktree_path
         .to_str()
         .ok_or_else(|| anyhow!("worktree path is not unicode"))?;
-    git(&["worktree", "add", "--detach", worktree_path], repo_path)?;
+    git(&["worktree", "add", "--detach", worktree_path], working_dir)?;
     Ok(())
 }
 
@@ -355,7 +372,7 @@ struct BranchInfo {
     worktree: Option<WorktreeInfo>,
 }
 
-fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
+fn get_branches(working_dir: &Path) -> Result<Vec<BranchInfo>> {
     use std::str;
 
     // TODO: Config system to allow specifying the branches? Maybe allow adding/removing them?
@@ -367,7 +384,7 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
             "--format=%(refname:short)%00%(upstream:short)%00%(worktreepath)",
             "refs/heads",
         ],
-        repo_path,
+        working_dir,
     )?
     .stdout;
     let branches = output
@@ -411,24 +428,24 @@ fn get_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
     Ok(branches)
 }
 
-fn get_merge_base(repo_path: &Path, a: &str, b: &str) -> Result<String> {
-    let output = git(&["merge-base", a, b], repo_path)?.stdout;
+fn get_merge_base(working_dir: &Path, a: &str, b: &str) -> Result<String> {
+    let output = git(&["merge-base", a, b], working_dir)?.stdout;
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
     Ok(output.to_owned())
 }
 
-fn switch_to_branch(branch: &str, repo_path: &Path) -> Result<()> {
-    git(&["switch", branch], repo_path)?;
+fn switch_to_branch(branch: &str, working_dir: &Path) -> Result<()> {
+    git(&["switch", branch], working_dir)?;
     Ok(())
 }
 
-fn is_rebasing(repo_path: &Path, worktree: Option<&str>) -> bool {
+fn is_rebasing(git_common_dir: &Path, worktree_name: Option<&str>) -> bool {
     // Check `.git/rebase-merge` exists. See https://stackoverflow.com/questions/3921409/how-to-know-if-there-is-a-git-rebase-in-progress/67245016#67245016
 
-    let worktree_git_dir = if let Some(worktree) = worktree {
-        repo_path.join(".git/worktrees").join(worktree)
+    let worktree_git_dir = if let Some(worktree_name) = worktree_name {
+        git_common_dir.join("worktrees").join(worktree_name)
     } else {
-        repo_path.join(".git")
+        git_common_dir.to_owned()
     };
 
     let rebase_apply = worktree_git_dir.join("rebase-apply");
@@ -437,17 +454,18 @@ fn is_rebasing(repo_path: &Path, worktree: Option<&str>) -> bool {
     rebase_apply.exists() || rebase_merge.exists()
 }
 
-fn is_clean(worktree_path: &Path) -> bool {
+/// Is the worktree that contains `working_dir` completely clean?
+fn is_clean(working_dir: &Path) -> bool {
     // Run `git diff-index --quiet HEAD` and `git diff-index --quiet --cached HEAD`
     // to check if there are any changes in the working tree or index (staging area).
 
     // Since this uses the exit code (0 = no differences) we kind of have to ignore
     // other errors since there's no way to detect them.
 
-    git(&["diff-index", "--quiet", "HEAD"], worktree_path).is_ok()
+    git(&["diff-index", "--quiet", "HEAD"], working_dir).is_ok()
         && git(
             &["diff-index", "--quiet", "--cached", "HEAD"],
-            worktree_path,
+            working_dir,
         )
         .is_ok()
 }
@@ -458,11 +476,11 @@ enum RebaseResult {
 }
 
 // Attempt to rebase the current branch in the `worktree_path` onto the `onto`
-// branch. `repo_path` points to the root of the repo (e.g. `/foo`).
+// branch. `git_common_dir` points to the main `.git` directory.
 // `worktree_path` points to the worktree, which may be the same (`/foo`)
 // or may be another path. If we are using our private worktree it will be
 // something like `/foo/.git/autorebase/autorebase_worktree`.
-fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<RebaseResult> {
+fn attempt_rebase(git_common_dir: &Path, worktree_path: &Path, onto: &str) -> Result<RebaseResult> {
     let rebase_ok = git(&["rebase", onto], worktree_path);
     if rebase_ok.is_ok() {
         return Ok(RebaseResult::Success);
@@ -477,7 +495,7 @@ fn attempt_rebase(repo_path: &Path, worktree_path: &Path, onto: &str) -> Result<
 
     let worktree = get_worktree_name(worktree_path)?;
 
-    if is_rebasing(repo_path, worktree.as_deref()) {
+    if is_rebasing(git_common_dir, worktree.as_deref()) {
         // Abort the rebase.
         git(&["rebase", "--abort"], worktree_path)?;
     }
@@ -493,7 +511,7 @@ const TEMPORARY_BRANCH_NAME: &'static str = "autorebase_tmp_safe_to_delete";
 ///
 /// Note that this will change the checked out branch.
 fn count_nonconflicting_commits_via_rebase(
-    repo_path: &Path,
+    git_common_dir: &Path,
     worktree_path: &Path,
     branch: &str,
     onto: &str,
@@ -520,7 +538,7 @@ fn count_nonconflicting_commits_via_rebase(
 
     let worktree = get_worktree_name(worktree_path)?;
 
-    if !is_rebasing(repo_path, worktree.as_deref()) {
+    if !is_rebasing(git_common_dir, worktree.as_deref()) {
         // Error - it should be rebasing!
         bail!("Rebase failed but repo is not rebasing.");
     }
@@ -545,7 +563,7 @@ fn count_nonconflicting_commits_via_rebase(
 
 /// Get the list of commits from `from` to `to`. The list includes `to` but not
 /// `from`.
-fn get_commit_list(repo_path: &Path, from: &str, to: &str) -> Result<Vec<String>> {
+fn get_commit_list(working_dir: &Path, from: &str, to: &str) -> Result<Vec<String>> {
     let output = git(
         &[
             "--no-pager",
@@ -553,7 +571,7 @@ fn get_commit_list(repo_path: &Path, from: &str, to: &str) -> Result<Vec<String>
             "--format=%H",
             &format!("{}..{}", from, to),
         ],
-        repo_path,
+        working_dir,
     )?
     .stdout;
     let output = String::from_utf8(output)?;
@@ -563,10 +581,10 @@ fn get_commit_list(repo_path: &Path, from: &str, to: &str) -> Result<Vec<String>
 /// Return the Git version like [2, 3, 30]. Really annoyingly the version sometimes
 /// includes text, for example 2.31.1.windows.1 (yes really). We will just convert
 /// unparsable values to -1. Ugly but they started it.
-fn git_version(repo_path: &Path) -> Result<Vec<i32>> {
+fn git_version() -> Result<Vec<i32>> {
     // The output of `git version` is guaranteed to be stable, though it has a stupid
     // "git version " string at the start.
-    let output = git(&["version"], repo_path)?.stdout;
+    let output = git_cwd(&["version"])?.stdout;
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
 
     if let Some(version_string) = output.strip_prefix("git version ") {
@@ -590,9 +608,9 @@ enum BranchOrCommit {
 /// an error if we are not on a branch. Note it will still return the branch
 /// name if we are on an unborn branch.
 ///
-fn get_current_branch(worktree_path: &Path) -> Result<Option<String>> {
+fn get_current_branch(working_dir: &Path) -> Result<Option<String>> {
     let output = Command::new("git")
-        .current_dir(worktree_path)
+        .current_dir(working_dir)
         .args(&["symbolic-ref", "--quiet", "--short", "HEAD"])
         .output()?;
 
@@ -607,31 +625,31 @@ fn get_current_branch(worktree_path: &Path) -> Result<Option<String>> {
 /// Use `git rev-parse HEAD` to return the current commit hash. It will
 /// return an error if we are on an unborn branch. That's an error for us though
 /// so we don't have to treat that case specially.
-fn get_commit_hash(worktree_path: &Path, branch: &str) -> Result<String> {
-    let commit = git(&["rev-parse", &branch], worktree_path)?.stdout;
+fn get_commit_hash(working_dir: &Path, branch: &str) -> Result<String> {
+    let commit = git(&["rev-parse", &branch], working_dir)?.stdout;
     let commit = std::str::from_utf8(commit.trim_ascii_whitespace())?;
     Ok(commit.to_owned())
 }
 
-fn get_current_branch_or_commit(worktree_path: &Path) -> Result<BranchOrCommit> {
-    if let Some(branch) = get_current_branch(worktree_path)? {
+fn get_current_branch_or_commit(working_dir: &Path) -> Result<BranchOrCommit> {
+    if let Some(branch) = get_current_branch(working_dir)? {
         return Ok(BranchOrCommit::Branch(branch));
     }
 
-    let commit = get_commit_hash(worktree_path, "HEAD")?;
+    let commit = get_commit_hash(working_dir, "HEAD")?;
     Ok(BranchOrCommit::Commit(commit))
 }
 
 fn switch_to_branch_or_commit(
-    worktree_path: &Path,
+    working_dir: &Path,
     branch_or_commit: &BranchOrCommit,
 ) -> Result<()> {
     match branch_or_commit {
         BranchOrCommit::Branch(ref branch) => {
-            git(&["switch", &branch], worktree_path)?;
+            git(&["switch", &branch], working_dir)?;
         }
         BranchOrCommit::Commit(ref commit) => {
-            git(&["switch", "--detach", &commit], worktree_path)?;
+            git(&["switch", "--detach", &commit], working_dir)?;
         }
     }
     Ok(())

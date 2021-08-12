@@ -3,7 +3,9 @@
 use anyhow::Result;
 use argh::FromArgs;
 
-use autorebase::{autorebase, get_repo_path};
+use autorebase::autorebase;
+
+use std::env::current_dir;
 
 #[derive(FromArgs)]
 /// Automatically pull the master branch and rebase all branches without
@@ -35,11 +37,8 @@ fn main() -> Result<()> {
 fn run() -> Result<()> {
     let options: CliOptions = argh::from_env();
 
-    // Find the repo dir in the same way git does.
-    let repo_path = get_repo_path()?;
-
     autorebase(
-        &repo_path,
+        &current_dir()?,
         &options.onto,
         options.slow,
         options.all_branches,

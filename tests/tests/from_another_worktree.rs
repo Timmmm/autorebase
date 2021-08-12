@@ -49,7 +49,7 @@ fn from_another_worktree(slow_conflict_detection: bool) {
                 "d3591307bd5590f14ae24d03ab41121ab94e2a90",
             ],
             refs: {
-                "master",
+                "another", "master",
             },
         },
         "d3591307bd5590f14ae24d03ab41121ab94e2a90": CommitGraphNode {
