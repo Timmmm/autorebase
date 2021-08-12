@@ -1,8 +1,9 @@
 mod all_branches;
-mod basic;
 mod basic_conflict;
+mod basic;
 mod checked_out;
 mod conflict_resume;
+mod from_another_worktree;
 mod multiple_branches;
 mod multiple_refs_on_branch;
 mod random;
