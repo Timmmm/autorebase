@@ -1,6 +1,6 @@
 [package]
 name = "autorebase"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["Tim Hutt <timh@graphcore.ai>"]
 edition = "2018"
 license = "MIT"
