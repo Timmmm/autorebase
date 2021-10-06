@@ -205,7 +205,7 @@ fn rebase_branch(
     worktree_path: &Path,
     slow_conflict_detection: bool,
 ) -> Result<(), anyhow::Error> {
-    eprintln!("• Rebasing {}...", branch.branch.bold());
+    eprintln!("• Rebasing {} ...", branch.branch.bold());
 
     let branch_commit = get_commit_hash(worktree_path, &branch.branch)?;
 
