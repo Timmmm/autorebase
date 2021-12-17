@@ -1,6 +1,7 @@
 
 use std::{io, fmt, path::Path, process::{self, Command}};
 use colored::*;
+use log::{debug};
 
 // Define our error types. These may be customized for our error handling cases.
 // Now we will be able to write our own errors, defer to an underlying error
@@ -59,7 +60,7 @@ pub fn git(args: &[&str], working_dir: &Path) -> Result<process::Output, Error> 
 }
 
 pub fn git_internal(args: &[&str], working_dir: Option<&Path>) -> Result<process::Output, Error> {
-    // eprintln!("{} $ {} {}", working_dir.unwrap_or(Path::new("")).to_string_lossy(), "git".bold(), args.join(" ").bold());
+    debug!("{} $ {} {}", working_dir.unwrap_or(Path::new("")).to_string_lossy(), "git".bold(), args.join(" ").bold());
 
     let mut command = Command::new("git");
     if let Some(working_dir) = working_dir {
@@ -69,6 +70,8 @@ pub fn git_internal(args: &[&str], working_dir: Option<&Path>) -> Result<process
     let output = command
         .args(args)
         .output()?;
+
+    debug!("{:?}", output);
 
     if !output.status.success() {
         return Err(Error::Process(ProcessError {

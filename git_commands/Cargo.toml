@@ -9,3 +9,4 @@ description = "Internal crate for autorebase"
 [dependencies]
 anyhow = "1.0.40"
 colored = "2.0.0"
+log = "0.4.14"
