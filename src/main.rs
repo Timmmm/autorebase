@@ -23,7 +23,11 @@ struct CliOptions {
 
     /// include branches which have an upstream, the default is to exclude these
     #[argh(switch)]
-    all_branches: bool,
+    include_non_local: bool,
+
+    /// branch matching glob, the default is all branches
+    #[argh(option)]
+    match_branches: Option<String>,
 
     /// RUST_LOG-style logging string, e.g. --log debug
     #[argh(option)]
@@ -49,7 +53,8 @@ fn run() -> Result<()> {
         &current_dir()?,
         &options.onto,
         options.slow,
-        options.all_branches,
+        options.include_non_local,
+        options.match_branches.as_deref(),
     )?;
 
     Ok(())

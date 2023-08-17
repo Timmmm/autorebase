@@ -11,6 +11,8 @@ use std::{
 
 mod conflicts;
 use conflicts::*;
+mod glob;
+use glob::*;
 mod trim;
 use trim::*;
 
@@ -42,7 +44,8 @@ pub fn autorebase(
     path: &Path,
     onto_branch: &str,
     slow_conflict_detection: bool,
-    include_all_branches: bool,
+    include_non_local: bool,
+    match_branches: Option<&str>,
 ) -> Result<()> {
     // Check the git version. `git switch` was introduced in 2.23.
     if git_version()?.as_slice() < &[2, 23] {
@@ -91,34 +94,42 @@ pub fn autorebase(
         .ok_or_else(|| anyhow!("Couldn't find target branch '{}'", onto_branch))?;
     eprintln!("\r{}", "• Getting branches...".green());
 
-    // Print a summary of the branches.
+    // Print a summary of the branches, and simultaneously filter them.
+    let mut rebase_branches: Vec<&BranchInfo> = Vec::with_capacity(all_branches.len());
+
     for branch in all_branches.iter() {
         if branch.branch == onto_branch {
             eprintln!("    - {} (target branch)", branch.branch.blue().bold());
-        } else if !include_all_branches && branch.upstream.is_some() {
+            continue;
+        }
+        if match match_branches {
+            Some(glob) => glob_match(glob, &branch.branch),
+            None => true,
+        } {
+            eprintln!(
+                "    - {} (skipping because it does not match branch filter)",
+                branch.branch.bold()
+            );
+            continue;
+        }
+        if !include_non_local && branch.upstream.is_some() {
             eprintln!(
                 "    - {} (skipping because it has an upstream)",
                 branch.branch.bold()
             );
-        } else if matches!(&branch.worktree, Some(worktree) if !worktree.clean) {
+            continue;
+        }
+        if matches!(&branch.worktree, Some(worktree) if !worktree.clean) {
             eprintln!(
                 "    - {} (skipping because it is checked out and not clean)",
                 branch.branch.bold()
             );
-        } else {
-            eprintln!("    - {}", branch.branch.green().bold());
+            continue;
         }
-    }
 
-    // Get the branches that we will actually attempt to rebase.
-    let rebase_branches: Vec<&BranchInfo> = all_branches
-        .iter()
-        .filter(|branch| {
-            branch.branch != onto_branch
-                && (include_all_branches || branch.upstream.is_none())
-                && !matches!(&branch.worktree, Some(worktree) if !worktree.clean)
-        })
-        .collect();
+        eprintln!("    - {}", branch.branch.green().bold());
+        rebase_branches.push(branch);
+    }
 
     // Pull master.
     pull_master(onto_branch_info, &autorebase_worktree_path)?;
