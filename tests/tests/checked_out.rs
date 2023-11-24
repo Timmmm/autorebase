@@ -27,7 +27,7 @@ fn checkedout_clean(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
+    autorebase(repo_dir, Some("master"), slow_conflict_detection, false, None).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
@@ -88,7 +88,7 @@ fn checkedout_dirty(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
+    autorebase(repo_dir, Some("master"), slow_conflict_detection, false, None).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
@@ -156,7 +156,7 @@ fn checked_out_conflict(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
+    autorebase(repo_dir, Some("master"), slow_conflict_detection, false, None).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

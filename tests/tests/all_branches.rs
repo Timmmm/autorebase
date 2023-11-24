@@ -23,7 +23,7 @@ fn with_include(include_all_branches: bool) -> BTreeMap<String, CommitGraphNode>
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, "master", false, include_all_branches).expect("error autorebasing");
+    autorebase(repo_dir, Some("master"), false, include_all_branches, None).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 

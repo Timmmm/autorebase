@@ -1,5 +1,5 @@
 #[path = "../tests/utils/mod.rs"]
-mod utils;
+pub mod utils;
 use utils::*;
 
 // This program just creates an example repo so you can try out autorebase.

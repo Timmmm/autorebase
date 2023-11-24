@@ -37,7 +37,7 @@ fn from_another_worktree(slow_conflict_detection: bool) {
     print_git_log_graph(&repo_dir);
 
     // Now autorebase from the other worktree dir.
-    autorebase(&another_worktree_repo_dir, "master", slow_conflict_detection, false).expect("error autorebasing");
+    autorebase(&another_worktree_repo_dir, Some("master"), slow_conflict_detection, false, None).expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
