@@ -103,8 +103,8 @@ pub fn autorebase(
             continue;
         }
         if match match_branches {
-            Some(glob) => glob_match(glob, &branch.branch),
-            None => true,
+            Some(glob) => !glob_match(glob, &branch.branch),
+            None => false,
         } {
             eprintln!(
                 "    - {} (skipping because it does not match branch filter)",
