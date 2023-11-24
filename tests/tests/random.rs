@@ -23,7 +23,14 @@ fn random_test(slow_conflict_detection: bool) {
 
     print_git_log_graph(&repo_dir);
 
-    autorebase(repo_dir, Some("master"), slow_conflict_detection, false, None).expect("error autorebasing");
+    autorebase(
+        repo_dir,
+        Some("master"),
+        slow_conflict_detection,
+        false,
+        None,
+    )
+    .expect("error autorebasing");
 
     print_git_log_graph(&repo_dir);
 
