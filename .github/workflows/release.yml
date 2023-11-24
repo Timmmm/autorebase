@@ -42,6 +42,9 @@ jobs:
       - name: Build
         run: cargo build --verbose --release --locked ${{ matrix.cargo_extra_flags }}
 
+      - name: Test
+        run: cargo test --verbose --release --locked ${{ matrix.cargo_extra_flags }}
+
       - name: Rename Output
         shell: pwsh
         run: Move-Item -Path "${{ matrix.output_executable }}" -Destination "target/${{ matrix.output_executable_upload_as }}"
