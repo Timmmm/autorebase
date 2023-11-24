@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - '*.*.*'
+    - '*.*.*'
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,43 +16,43 @@ jobs:
         # Note, musl-tools has a bug in ubuntu-20.04 that causes a segfault when the test is run.
         os: [ubuntu-18.04, macos-latest, windows-latest]
         include:
-          - os: ubuntu-18.04
-            cargo_extra_flags: --target x86_64-unknown-linux-musl
-            output_executable: target/x86_64-unknown-linux-musl/release/autorebase
-            output_executable_upload_as: autorebase-linux
-          - os: macos-latest
-            output_executable: target/release/autorebase
-            output_executable_upload_as: autorebase-mac
-          - os: windows-latest
-            output_executable: target/release/autorebase.exe
-            output_executable_upload_as: autorebase-windows.exe
+        - os: ubuntu-18.04
+          cargo_extra_flags: --target x86_64-unknown-linux-musl
+          output_executable: target/x86_64-unknown-linux-musl/release/autorebase
+          output_executable_upload_as: autorebase-linux
+        - os: macos-latest
+          output_executable: target/release/autorebase
+          output_executable_upload_as: autorebase-mac
+        - os: windows-latest
+          output_executable: target/release/autorebase.exe
+          output_executable_upload_as: autorebase-windows.exe
     steps:
-      - uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-      - name: Install Musl target
-        if: ${{ matrix.os == 'ubuntu-18.04' }}
-        run: >
-          sudo apt-get install musl-tools &&
-          rustup target add x86_64-unknown-linux-musl &&
-          musl-gcc --version
+    - name: Install Musl target
+      if: ${{ matrix.os == 'ubuntu-18.04' }}
+      run: >
+        sudo apt-get install musl-tools &&
+        rustup target add x86_64-unknown-linux-musl &&
+        musl-gcc --version
 
-      - name: Versions
-        run: cargo --version && rustc --version
+    - name: Versions
+      run: cargo --version && rustc --version
 
-      - name: Build
-        run: cargo build --verbose --release --locked ${{ matrix.cargo_extra_flags }}
+    - name: Build
+      run: cargo build --verbose --release --locked ${{ matrix.cargo_extra_flags }}
 
-      - name: Test
-        run: cargo test --verbose --release --locked ${{ matrix.cargo_extra_flags }}
+    - name: Test
+      run: cargo test --verbose --release --locked ${{ matrix.cargo_extra_flags }}
 
-      - name: Rename Output
-        shell: pwsh
-        run: Move-Item -Path "${{ matrix.output_executable }}" -Destination "target/${{ matrix.output_executable_upload_as }}"
+    - name: Rename Output
+      shell: pwsh
+      run: Move-Item -Path "${{ matrix.output_executable }}" -Destination "target/${{ matrix.output_executable_upload_as }}"
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: "target/${{ matrix.output_executable_upload_as }}"
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        files: target/${{ matrix.output_executable_upload_as }}
 #           fail_on_unmatched_files: true  # I think this is not supported in the @v1 version.
