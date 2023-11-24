@@ -9,6 +9,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+mod config;
+use config::*;
 mod conflicts;
 use conflicts::*;
 mod glob;
@@ -42,7 +44,7 @@ fn set_committer_date_to_now() {
 ///
 pub fn autorebase(
     path: &Path,
-    onto_branch: &str,
+    onto_branch: Option<&str>,
     slow_conflict_detection: bool,
     include_non_local: bool,
     match_branches: Option<&str>,
@@ -51,6 +53,16 @@ pub fn autorebase(
     if git_version()?.as_slice() < &[2, 23] {
         bail!("Your Git installation is too old - version 2.23 or later is required");
     }
+
+    // Get the target branch name in this priority order:
+    //
+    // 1. Set explicitly via `--onto`
+    // 2. The `init.defaultBranch` git config setting.
+    // 3. "master"
+    let onto_branch = match onto_branch {
+        Some(b) => b.to_owned(),
+        None => default_branch_name(path)?,
+    };
 
     // The first thing we do is set the commiter date to now. If we don't do this
     // then when we have two branch labels on the same commit, when they get
@@ -91,7 +103,8 @@ pub fn autorebase(
     let onto_branch_info = all_branches
         .iter()
         .find(|b| b.branch == onto_branch)
-        .ok_or_else(|| anyhow!("Couldn't find target branch '{}'", onto_branch))?;
+        .ok_or_else(|| anyhow!("Couldn't find target branch '{}'. You can set the default target \
+                                    branch via 'git config init.defaultBranch' or use the --onto flag.", onto_branch))?;
     eprintln!("\r{}", "• Getting branches...".green());
 
     // Print a summary of the branches, and simultaneously filter them.
@@ -140,7 +153,7 @@ pub fn autorebase(
             &git_common_dir,
             &mut conflicts,
             &conflicts_path,
-            onto_branch,
+            &onto_branch,
             &autorebase_worktree_path,
             slow_conflict_detection,
         )?;

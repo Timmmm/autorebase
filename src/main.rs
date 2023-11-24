@@ -11,9 +11,10 @@ use std::env::current_dir;
 /// Automatically pull the master branch and rebase all branches without
 /// upstreams onto it.
 struct CliOptions {
-    /// the target branch to pull and rebase onto (typically "master" or "develop")
-    #[argh(option, default = "String::from(\"master\")")]
-    onto: String,
+    /// the target branch to pull and rebase onto;
+    /// defaults to `git config --get init.defaultBranch` or `master` if unset
+    #[argh(option)]
+    onto: Option<String>,
 
     /// if there are conflicts, try rebasing commit by commit backwards from the
     /// target, instead of trying to determind the conflicting commit on the
@@ -53,7 +54,7 @@ fn run() -> Result<()> {
 
     autorebase(
         &current_dir()?,
-        &options.onto,
+        options.onto.as_deref(),
         options.slow,
         options.include_non_local,
         options.match_branches.as_deref(),
