@@ -1,7 +1,10 @@
-
-use std::{io, fmt, path::Path, process::{self, Command}};
 use colored::*;
-use log::{debug};
+use log::debug;
+use std::{
+    fmt, io,
+    path::Path,
+    process::{self, Command},
+};
 
 // Define our error types. These may be customized for our error handling cases.
 // Now we will be able to write our own errors, defer to an underlying error
@@ -46,8 +49,7 @@ impl From<io::Error> for Error {
     }
 }
 
-impl std::error::Error for Error {
-}
+impl std::error::Error for Error {}
 
 /// Run a git command with the given arguments in the current directory.
 pub fn git_cwd(args: &[&str]) -> Result<process::Output, Error> {
@@ -60,23 +62,29 @@ pub fn git(args: &[&str], working_dir: &Path) -> Result<process::Output, Error> 
 }
 
 pub fn git_internal(args: &[&str], working_dir: Option<&Path>) -> Result<process::Output, Error> {
-    debug!("{} $ {} {}", working_dir.unwrap_or(Path::new("")).to_string_lossy(), "git".bold(), args.join(" ").bold());
+    debug!(
+        "{} $ {} {}",
+        working_dir.unwrap_or(Path::new("")).to_string_lossy(),
+        "git".bold(),
+        args.join(" ").bold()
+    );
 
     let mut command = Command::new("git");
     if let Some(working_dir) = working_dir {
         command.current_dir(working_dir);
     }
 
-    let output = command
-        .args(args)
-        .output()?;
+    let output = command.args(args).output()?;
 
     debug!("{:?}", output);
 
     if !output.status.success() {
         return Err(Error::Process(ProcessError {
             output,
-            command: std::iter::once(&"git").chain(args.iter()).map(|&s| s.to_owned()).collect(),
+            command: std::iter::once(&"git")
+                .chain(args.iter())
+                .map(|&s| s.to_owned())
+                .collect(),
         }));
     }
 

@@ -47,7 +47,9 @@ fn main() -> Result<()> {
 fn run() -> Result<()> {
     let options: CliOptions = argh::from_env();
 
-    env_logger::Builder::new().parse_filters(&options.log.unwrap_or_default()).init();
+    env_logger::Builder::new()
+        .parse_filters(&options.log.unwrap_or_default())
+        .init();
 
     autorebase(
         &current_dir()?,

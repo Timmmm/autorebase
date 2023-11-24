@@ -1,6 +1,6 @@
 mod all_branches;
-mod basic_conflict;
 mod basic;
+mod basic_conflict;
 mod checked_out;
 mod conflict_resume;
 mod from_another_worktree;

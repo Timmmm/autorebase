@@ -348,14 +348,22 @@ fn rebase_branch(
 
 /// Utility function to get the worktree dir for the given directory.
 pub fn get_worktree_path(for_path: &Path) -> Result<PathBuf> {
-    let output = git(&["rev-parse", "--path-format=absolute", "--show-toplevel"], for_path)?.stdout;
+    let output = git(
+        &["rev-parse", "--path-format=absolute", "--show-toplevel"],
+        for_path,
+    )?
+    .stdout;
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
     Ok(PathBuf::from(output))
 }
 
 /// Return the path to the main `.git` directory for the given directory.
 pub fn get_git_common_dir(for_path: &Path) -> Result<PathBuf> {
-    let output = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"], for_path)?.stdout;
+    let output = git(
+        &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        for_path,
+    )?
+    .stdout;
     let output = std::str::from_utf8(output.trim_ascii_whitespace())?;
     Ok(PathBuf::from(output))
 }
@@ -474,11 +482,7 @@ fn is_clean(working_dir: &Path) -> bool {
     // other errors since there's no way to detect them.
 
     git(&["diff-index", "--quiet", "HEAD"], working_dir).is_ok()
-        && git(
-            &["diff-index", "--quiet", "--cached", "HEAD"],
-            working_dir,
-        )
-        .is_ok()
+        && git(&["diff-index", "--quiet", "--cached", "HEAD"], working_dir).is_ok()
 }
 
 enum RebaseResult {
@@ -651,10 +655,7 @@ fn get_current_branch_or_commit(working_dir: &Path) -> Result<BranchOrCommit> {
     Ok(BranchOrCommit::Commit(commit))
 }
 
-fn switch_to_branch_or_commit(
-    working_dir: &Path,
-    branch_or_commit: &BranchOrCommit,
-) -> Result<()> {
+fn switch_to_branch_or_commit(working_dir: &Path, branch_or_commit: &BranchOrCommit) -> Result<()> {
     match branch_or_commit {
         BranchOrCommit::Branch(ref branch) => {
             git(&["switch", &branch], working_dir)?;
