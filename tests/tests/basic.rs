@@ -14,9 +14,9 @@ fn test_build_repo() {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "baf6cf8e026e065d369b3dd103c4cc73ffba52dd": CommitGraphNode {
@@ -61,7 +61,7 @@ fn basic_autorebase(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -72,9 +72,9 @@ fn basic_autorebase(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "a6de41485a5af44adc18b599a63840c367043e39": CommitGraphNode {

@@ -25,7 +25,7 @@ fn checkedout_clean(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -36,9 +36,9 @@ fn checkedout_clean(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "a6de41485a5af44adc18b599a63840c367043e39": CommitGraphNode {
@@ -93,7 +93,7 @@ fn checkedout_dirty(slow_conflict_detection: bool) {
     // Make it dirty.
     fs::write(repo_dir.join("b.txt"), "baz").expect("error writing file");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -104,9 +104,9 @@ fn checkedout_dirty(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "a6de41485a5af44adc18b599a63840c367043e39": CommitGraphNode {
@@ -168,7 +168,7 @@ fn checked_out_conflict(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -179,9 +179,9 @@ fn checked_out_conflict(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "386e8eec713b111eca536adc310dfccf22323ad7": CommitGraphNode {

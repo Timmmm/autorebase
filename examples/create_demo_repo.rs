@@ -16,7 +16,7 @@ fn main() {
         .write("a.txt", "hello")
         .child(
             commit("Write specification")
-            .write("spec.txt", "Specifcation: Do nothing")
+            .write("spec.txt", "Specification: Do nothing")
             .child(
                 commit("Implement specification")
                 .write("code.c", "int main() { return 1; }")

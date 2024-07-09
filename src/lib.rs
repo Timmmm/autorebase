@@ -64,9 +64,9 @@ pub fn autorebase(
         None => default_branch_name(path)?,
     };
 
-    // The first thing we do is set the commiter date to now. If we don't do this
+    // The first thing we do is set the committer date to now. If we don't do this
     // then when we have two branch labels on the same commit, when they get
-    // rebased they will be given different commiter dates which will mean they
+    // rebased they will be given different committer dates which will mean they
     // get different hashes and end up as separate commits.
     set_committer_date_to_now();
 
@@ -243,7 +243,7 @@ fn rebase_branch(
     }
 
     conflicts.branches.remove(&branch.branch);
-    conflicts.write_to_file(&conflicts_path)?;
+    conflicts.write_to_file(conflicts_path)?;
 
     let merge_base = get_merge_base(worktree_path, &branch.branch, onto_branch)?;
 
@@ -261,7 +261,7 @@ fn rebase_branch(
         &worktree.path
     } else {
         // It isn't checked out anywhere; switch to it in our temporary worktree.
-        switch_to_branch(&branch.branch, &worktree_path)?;
+        switch_to_branch(&branch.branch, worktree_path)?;
         worktree_path
     };
 
@@ -322,7 +322,7 @@ fn rebase_branch(
                     let result = attempt_rebase(
                         git_common_dir,
                         rebase_worktree_path,
-                        &last_nonconflicting_commit,
+                        last_nonconflicting_commit,
                     )?;
                     match result {
                         RebaseResult::Success => {
@@ -339,7 +339,7 @@ fn rebase_branch(
 
     // Switch to the branch so that we don't leave references to unneeded commits
     // around, and detach otherwise we may prevent people checking it out.
-    git(&["switch", "--detach", &branch.branch], &worktree_path)?;
+    git(&["switch", "--detach", &branch.branch], worktree_path)?;
 
     if stopped_by_conflicts {
         eprintln!(
@@ -353,7 +353,7 @@ fn rebase_branch(
         conflicts
             .branches
             .insert(branch.branch.clone(), new_branch_commit);
-        conflicts.write_to_file(&conflicts_path)?;
+        conflicts.write_to_file(conflicts_path)?;
     }
 
     Ok(())
@@ -531,7 +531,7 @@ fn attempt_rebase(git_common_dir: &Path, worktree_path: &Path, onto: &str) -> Re
     Ok(RebaseResult::Conflict)
 }
 
-const TEMPORARY_BRANCH_NAME: &'static str = "autorebase_tmp_safe_to_delete";
+const TEMPORARY_BRANCH_NAME: &str = "autorebase_tmp_safe_to_delete";
 
 /// Create a temporary branch at master (`onto`), then try to rebase it ont
 /// `branch`. Count how many commits were rebased successfully, and
@@ -639,7 +639,7 @@ enum BranchOrCommit {
 fn get_current_branch(working_dir: &Path) -> Result<Option<String>> {
     let output = Command::new("git")
         .current_dir(working_dir)
-        .args(&["symbolic-ref", "--quiet", "--short", "HEAD"])
+        .args(["symbolic-ref", "--quiet", "--short", "HEAD"])
         .output()?;
 
     if output.status.success() {
@@ -654,7 +654,7 @@ fn get_current_branch(working_dir: &Path) -> Result<Option<String>> {
 /// return an error if we are on an unborn branch. That's an error for us though
 /// so we don't have to treat that case specially.
 fn get_commit_hash(working_dir: &Path, branch: &str) -> Result<String> {
-    let commit = git(&["rev-parse", &branch], working_dir)?.stdout;
+    let commit = git(&["rev-parse", branch], working_dir)?.stdout;
     let commit = std::str::from_utf8(commit.trim_ascii_whitespace())?;
     Ok(commit.to_owned())
 }
@@ -671,10 +671,10 @@ fn get_current_branch_or_commit(working_dir: &Path) -> Result<BranchOrCommit> {
 fn switch_to_branch_or_commit(working_dir: &Path, branch_or_commit: &BranchOrCommit) -> Result<()> {
     match branch_or_commit {
         BranchOrCommit::Branch(ref branch) => {
-            git(&["switch", &branch], working_dir)?;
+            git(&["switch", branch], working_dir)?;
         }
         BranchOrCommit::Commit(ref commit) => {
-            git(&["switch", "--detach", &commit], working_dir)?;
+            git(&["switch", "--detach", commit], working_dir)?;
         }
     }
     Ok(())

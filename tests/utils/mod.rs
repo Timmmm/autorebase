@@ -18,21 +18,15 @@ pub fn git_fixed_dates() {
 /// Create a temporary directory and initialise it as a Git repo.
 pub fn create_temporary_git_repo() -> TempDir {
     let repo_dir = tempdir().expect("Couldn't create temporary directory");
-    git(&["init", "--initial-branch=master"], &repo_dir.path())
+    git(&["init", "--initial-branch=master"], repo_dir.path())
         .expect("error initialising git repo");
     // You have to set these otherwise Git can't do commits.
-    git(
-        &["config", "user.email", "me@example.com"],
-        &repo_dir.path(),
-    )
-    .expect("error setting config");
-    git(&["config", "user.name", "Me"], &repo_dir.path()).expect("error setting config");
+    git(&["config", "user.email", "me@example.com"], repo_dir.path())
+        .expect("error setting config");
+    git(&["config", "user.name", "Me"], repo_dir.path()).expect("error setting config");
     // Hide detached head warnings.
-    git(
-        &["config", "advice.detachedHead", "false"],
-        &repo_dir.path(),
-    )
-    .expect("error setting config");
+    git(&["config", "advice.detachedHead", "false"], repo_dir.path())
+        .expect("error setting config");
     repo_dir
 }
 
@@ -174,7 +168,7 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
             args.push(parent);
         }
 
-        args.push(&tree_object);
+        args.push(tree_object);
 
         // Commit.
         let this_commit = git(&args, repo_path).expect("error committing").stdout;
@@ -203,8 +197,8 @@ pub fn build_repo(root: &CommitDescription, checkout_when_done: Option<&str>) ->
         // Process the children.
         for child in c.children.iter() {
             // Checkout this commit.
-            git(&["checkout", &this_commit], repo_path).expect("error checking out commit");
-            process_commit(child, repo_path, Some(&this_commit), hash_by_id);
+            git(&["checkout", this_commit], repo_path).expect("error checking out commit");
+            process_commit(child, repo_path, Some(this_commit), hash_by_id);
         }
     }
 

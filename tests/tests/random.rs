@@ -21,7 +21,7 @@ fn random_test(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -32,7 +32,7 @@ fn random_test(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     // This doesn't really test anything yet; just makes sure the code doesn't panic.
 }

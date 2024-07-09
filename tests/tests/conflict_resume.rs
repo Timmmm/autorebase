@@ -38,7 +38,7 @@ fn conflict_resume(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -49,9 +49,9 @@ fn conflict_resume(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "386e8eec713b111eca536adc310dfccf22323ad7": CommitGraphNode {
@@ -103,13 +103,13 @@ fn conflict_resume(slow_conflict_detection: bool) {
 
     // Ok if we run `autorebase` again we should expect it not to change anything.
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(repo_dir, Some("master"), true, false, None).expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "211ae909a7bf0a2052009b8c21bebc6947591277": CommitGraphNode {
@@ -170,15 +170,15 @@ fn conflict_resume(slow_conflict_detection: bool) {
     // Check out master again so `wip` can be autorebased.
     git(&["checkout", "master"], repo_dir).expect("error checking out master");
 
-    // Ok if we run `autorebase` is should succesfully rebase to master.
+    // Ok if we run `autorebase` is should successfully rebase to master.
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(repo_dir, Some("master"), true, false, None).expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "20b78857d9e5095469d9f91a5de77d0c36813b46": CommitGraphNode {
