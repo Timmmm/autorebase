@@ -455,7 +455,7 @@ fn get_branches(working_dir: &Path) -> Result<Vec<BranchInfo>> {
             })
         })
         // This temporary branch should have been deleted but filter it out just in case something went wrong.
-        .filter(|branch| !matches!(branch, Ok(b) if b.branch == TEMPORARY_BRANCH_NAME))
+        .filter(|branch| !matches!(branch, Ok(b) if b.branch == TEMPORARY_BRANCH_NAME || b.branch == "heads/origin"))
         .collect::<Result<_, _>>()?;
     Ok(branches)
 }
