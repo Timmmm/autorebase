@@ -21,14 +21,14 @@ fn with_include(include_all_branches: bool) -> BTreeMap<String, CommitGraphNode>
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(repo_dir, Some("master"), false, include_all_branches, None)
         .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    get_repo_graph(&repo_dir).expect("error getting repo graph")
+    get_repo_graph(repo_dir).expect("error getting repo graph")
 }
 
 #[test]

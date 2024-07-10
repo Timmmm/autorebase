@@ -32,7 +32,7 @@ fn conflict(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -43,9 +43,9 @@ fn conflict(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "386e8eec713b111eca536adc310dfccf22323ad7": CommitGraphNode {

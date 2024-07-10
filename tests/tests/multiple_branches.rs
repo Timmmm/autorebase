@@ -25,7 +25,7 @@ fn multiple_branches(slow_conflict_detection: bool) {
 
     let repo_dir = repo.path();
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     autorebase(
         repo_dir,
@@ -36,9 +36,9 @@ fn multiple_branches(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "540f822d14ae077991e2a722996825e4e7f9d667": CommitGraphNode {

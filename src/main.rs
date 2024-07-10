@@ -17,7 +17,7 @@ struct CliOptions {
     onto: Option<String>,
 
     /// if there are conflicts, try rebasing commit by commit backwards from the
-    /// target, instead of trying to determind the conflicting commit on the
+    /// target, instead of trying to determined the conflicting commit on the
     /// target branch directly
     #[argh(switch)]
     slow: bool,

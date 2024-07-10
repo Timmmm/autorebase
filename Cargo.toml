@@ -1,25 +1,25 @@
 [package]
-name = "autorebase"
-version = "0.6.0"
-authors = ["Tim Hutt <timh@graphcore.ai>"]
-edition = "2018"
-license = "MIT"
+authors = [ "Tim Hutt <timh@graphcore.ai>" ]
 description = "Automatically rebase feature branches onto master"
-keywords = ["git", "rebase"]
+edition = "2021"
+keywords = [ "git", "rebase" ]
+license = "MIT"
+name = "autorebase"
 repository = "https://github.com/Timmmm/autorebase"
+version = "0.7.0"
 
 [dependencies]
-anyhow = "1.0.40"
-argh = "0.1.4"
-colored = "2.0.0"
-env_logger = "0.10.0"
+anyhow = "1.0.86"
+argh = "0.1.12"
+colored = "2.1.0"
+env_logger = "0.11.3"
 git_commands = { path = "git_commands", version = "0.2.0" }
-itertools = "0.11.0"
-log = "0.4.14"
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.7.6"
+itertools = "0.13.0"
+log = "0.4.22"
+serde = { version = "1.0", features = [ "derive" ] }
+toml = "0.8.14"
 
 [dev-dependencies]
 # For tests
-tempfile = "3.1.0"
-rand = "0.8.3"
+rand = "0.8.5"
+tempfile = "3.10.1"

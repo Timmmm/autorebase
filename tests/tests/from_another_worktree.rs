@@ -33,7 +33,7 @@ fn from_another_worktree(slow_conflict_detection: bool) {
         &[
             "worktree",
             "add",
-            &another_worktree_repo_dir
+            another_worktree_repo_dir
                 .to_str()
                 .expect("non-unicode test path"),
         ],
@@ -41,7 +41,7 @@ fn from_another_worktree(slow_conflict_detection: bool) {
     )
     .expect("Couldn't create another worktree");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
     // Now autorebase from the other worktree dir.
     autorebase(
@@ -53,9 +53,9 @@ fn from_another_worktree(slow_conflict_detection: bool) {
     )
     .expect("error autorebasing");
 
-    print_git_log_graph(&repo_dir);
+    print_git_log_graph(repo_dir);
 
-    let graph = get_repo_graph(&repo_dir).expect("error getting repo graph");
+    let graph = get_repo_graph(repo_dir).expect("error getting repo graph");
 
     let expected_graph = commit_graph!(
         "a6de41485a5af44adc18b599a63840c367043e39": CommitGraphNode {
